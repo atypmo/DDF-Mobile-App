@@ -1,5 +1,12 @@
+import { supabase } from "@/lib/supabase";
+import { FontAwesome } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
+import { useState } from "react";
 import {
+    Alert,
     Image,
     KeyboardAvoidingView,
     Platform,
@@ -8,354 +15,416 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
-
-import { FontAwesome } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isGmailLoading, setIsGmailLoading] = useState(false);
 
-return (
+  const handleEmailSignIn = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Missing fields", "Enter both email and password.");
+      return;
+    }
 
-<SafeAreaView style={styles.container}>
+    try {
+      setIsSigningIn(true);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-<KeyboardAvoidingView
-style={{flex:1}}
-behavior={Platform.OS === "ios" ? "padding" : "height"}
->
+      if (error) {
+        Alert.alert("Sign in failed", error.message);
+        return;
+      }
 
-<ScrollView
-contentContainerStyle={{
-flexGrow:1,
-backgroundColor:"#fff"
-}}
->
+      router.replace("/");
+    } catch {
+      Alert.alert("Sign in failed", "Please try again.");
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
 
-{/* HEADER */}
+  const handleGmailSignIn = async () => {
+    try {
+      setIsGmailLoading(true);
 
-<View style={styles.header}>
+      const redirectTo = Linking.createURL("/");
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
 
-<LinearGradient
-colors={["#000000","#000000","#2a0000","#5a0000"]}
-start={{x:0.2,y:0}}
-end={{x:1,y:1}}
-style={styles.gradient}
-/>
+      if (error) {
+        Alert.alert("Gmail sign in failed", error.message);
+        return;
+      }
 
-<Image
-source={require("../assets/images/IMG_5141.png")}
-style={styles.logo}
-/>
+      if (!data?.url) {
+        Alert.alert("Gmail sign in failed", "Could not start OAuth flow.");
+        return;
+      }
 
-<Text style={styles.logoText}>D F F</Text>
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (result.type !== "success" || !result.url) {
+        return;
+      }
 
-<Text style={styles.foundation}>
-DOMINANCE FORBES FOUNDATION
-</Text>
+      const parsed = Linking.parse(result.url);
+      const code = parsed.queryParams?.code;
 
-<Text style={styles.tagline}>Strength in Unity.</Text>
-<Text style={styles.tagline}>We Shape Tomorrow.</Text>
+      if (typeof code !== "string") {
+        Alert.alert(
+          "OAuth setup needed",
+          "Add your app redirect URL to Supabase Auth URL configuration."
+        );
+        return;
+      }
 
-</View>
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      if (exchangeError) {
+        Alert.alert("Gmail sign in failed", exchangeError.message);
+        return;
+      }
 
-{/* WHITE LOGIN SECTION */}
+      router.replace("/");
+    } catch {
+      Alert.alert("Gmail sign in failed", "Please try again.");
+    } finally {
+      setIsGmailLoading(false);
+    }
+  };
 
-<View style={styles.card}>
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            backgroundColor: "#fff",
+          }}
+        >
+          <View style={styles.header}>
+            <LinearGradient
+              colors={["#000000", "#000000", "#2a0000", "#5a0000"]}
+              start={{ x: 0.2, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.gradient}
+            />
 
-<View style={styles.toggle}>
+            <Image
+              source={require("../assets/images/IMG_5141.png")}
+              style={styles.logo}
+            />
 
-<View style={styles.toggleActive}>
-<Text style={styles.toggleActiveText}>Sign In</Text>
-</View>
+            <Text style={styles.logoText}>D F F</Text>
 
-<TouchableOpacity
-style={styles.toggleInactive}
-onPress={()=>router.push("/signup")}
->
-<Text style={styles.toggleInactiveText}>
-Create Account
-</Text>
-</TouchableOpacity>
+            <Text style={styles.foundation}>DOMINANCE FORBES FOUNDATION</Text>
 
-</View>
+            <Text style={styles.tagline}>Strength in Unity.</Text>
+            <Text style={styles.tagline}>We Shape Tomorrow.</Text>
+          </View>
 
-<Text style={styles.label}>EMAIL</Text>
+          <View style={styles.card}>
+            <View style={styles.toggle}>
+              <View style={styles.toggleActive}>
+                <Text style={styles.toggleActiveText}>Sign In</Text>
+              </View>
 
-<TextInput
-style={styles.input}
-placeholder="your@email.com"
-keyboardType="email-address"
-/>
+              <TouchableOpacity
+                style={styles.toggleInactive}
+                onPress={() => router.push("/signup")}
+              >
+                <Text style={styles.toggleInactiveText}>Create Account</Text>
+              </TouchableOpacity>
+            </View>
 
-<Text style={styles.label}>PASSWORD</Text>
+            <Text style={styles.label}>EMAIL</Text>
 
-<TextInput
-style={styles.input}
-placeholder="••••••••"
-secureTextEntry
-/>
+            <TextInput
+              style={styles.input}
+              placeholder="your@email.com"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+            />
 
-<TouchableOpacity>
-<Text style={styles.forgot}>Forgot your password?</Text>
-</TouchableOpacity>
+            <Text style={styles.label}>PASSWORD</Text>
 
-<View style={styles.twofaBox}>
+            <TextInput
+              style={styles.input}
+              placeholder="********"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
 
-<View style={styles.twofaRow}>
-<FontAwesome name="lock" size={18} color="#d40000"/>
-<Text style={styles.twofaTitle}>
-2-Step Verification enabled
-</Text>
-</View>
+            <TouchableOpacity>
+              <Text style={styles.forgot}>Forgot your password?</Text>
+            </TouchableOpacity>
 
-<Text style={styles.twofaSub}>
-Authenticator app · SMS backup
-</Text>
+            <View style={styles.twofaBox}>
+              <View style={styles.twofaRow}>
+                <FontAwesome name="lock" size={18} color="#d40000" />
+                <Text style={styles.twofaTitle}>2-Step Verification enabled</Text>
+              </View>
 
-</View>
+              <Text style={styles.twofaSub}>Authenticator app - SMS backup</Text>
+            </View>
 
-<TouchableOpacity
-style={styles.signin}
-onPress={()=>router.replace("/")}
->
-<Text style={styles.signinText}>Sign In</Text>
-</TouchableOpacity>
+            <TouchableOpacity
+              style={styles.signin}
+              onPress={handleEmailSignIn}
+              disabled={isSigningIn}
+            >
+              <Text style={styles.signinText}>
+                {isSigningIn ? "Signing In..." : "Sign In"}
+              </Text>
+            </TouchableOpacity>
 
-<View style={styles.dividerRow}>
-<View style={styles.line}/>
-<Text style={styles.dividerText}>
-or continue with
-</Text>
-<View style={styles.line}/>
-</View>
+            <View style={styles.dividerRow}>
+              <View style={styles.line} />
+              <Text style={styles.dividerText}>or continue with</Text>
+              <View style={styles.line} />
+            </View>
 
-<View style={styles.socialRow}>
+            <View style={styles.socialRow}>
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={handleGmailSignIn}
+                disabled={isGmailLoading}
+              >
+                <FontAwesome name="google" size={18} color="#4285F4" />
+                <Text style={styles.socialText}>
+                  {isGmailLoading ? " Gmail..." : " Gmail"}
+                </Text>
+              </TouchableOpacity>
 
-<TouchableOpacity style={styles.socialButton}>
-<FontAwesome name="google" size={18} color="#4285F4"/>
-<Text style={styles.socialText}> Google</Text>
-</TouchableOpacity>
+              <TouchableOpacity style={styles.socialButton}>
+                <FontAwesome name="facebook" size={18} color="#1877F2" />
+                <Text style={styles.socialText}> Facebook</Text>
+              </TouchableOpacity>
+            </View>
 
-<TouchableOpacity style={styles.socialButton}>
-<FontAwesome name="facebook" size={18} color="#1877F2"/>
-<Text style={styles.socialText}> Facebook</Text>
-</TouchableOpacity>
-
-</View>
-
-<Text style={styles.infoText}>
-Email & mobile verification required on first sign in
-</Text>
-
-</View>
-
-</ScrollView>
-
-</KeyboardAvoidingView>
-
-</SafeAreaView>
-
-);
+            <Text style={styles.infoText}>
+              Email and mobile verification required on first sign in
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
 
-container:{
-flex:1,
-backgroundColor:"#000"
-},
+  header: {
+    height: 320,
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingBottom: 40,
+  },
 
-header:{
-height:320,
-justifyContent:"flex-end",
-alignItems:"center",
-paddingBottom:40
-},
+  gradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
 
-gradient:{
-position:"absolute",
-top:0,
-left:0,
-right:0,
-bottom:0
-},
+  logo: {
+    width: 110,
+    height: 110,
+    resizeMode: "contain",
+    marginBottom: 15,
+  },
 
-logo:{
-width:110,
-height:110,
-resizeMode:"contain",
-marginBottom:15
-},
+  logoText: {
+    color: "#ffffff",
+    fontSize: 34,
+    letterSpacing: 10,
+    marginTop: 4,
+  },
 
-logoText:{
-color:"#ffffff",
-fontSize:34,
-letterSpacing:10,
-marginTop:4
-},
+  foundation: {
+    color: "#8a8a8a",
+    letterSpacing: 4,
+    fontSize: 11,
+    marginTop: 10,
+  },
 
-foundation:{
-color:"#8a8a8a",
-letterSpacing:4,
-fontSize:11,
-marginTop:10
-},
+  tagline: {
+    color: "#d1d1d1",
+    fontSize: 17,
+    marginTop: 6,
+    fontWeight: "400",
+    letterSpacing: 0.3,
+  },
 
-tagline:{
-color:"#d1d1d1",
-fontSize:17,
-marginTop:6,
-fontWeight:"400",
-letterSpacing:0.3
-},
+  card: {
+    flex: 1,
+    backgroundColor: "#fff",
+    padding: 25,
+    paddingBottom: 40,
+    marginTop: -10,
+  },
 
-card:{
-flex:1,
-backgroundColor:"#fff",
-padding:25,
-paddingBottom:40,
-marginTop:-10
-},
+  toggle: {
+    flexDirection: "row",
+    backgroundColor: "#eee",
+    borderRadius: 20,
+    padding: 4,
+    marginBottom: 20,
+  },
 
-toggle:{
-flexDirection:"row",
-backgroundColor:"#eee",
-borderRadius:20,
-padding:4,
-marginBottom:20
-},
+  toggleActive: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 12,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
 
-toggleActive:{
-flex:1,
-backgroundColor:"#fff",
-borderRadius:16,
-padding:12,
-alignItems:"center",
-shadowColor:"#000",
-shadowOpacity:0.15,
-shadowRadius:6
-},
+  toggleInactive: {
+    flex: 1,
+    padding: 12,
+    alignItems: "center",
+  },
 
-toggleInactive:{
-flex:1,
-padding:12,
-alignItems:"center"
-},
+  toggleActiveText: {
+    fontWeight: "600",
+  },
 
-toggleActiveText:{
-fontWeight:"600"
-},
+  toggleInactiveText: {
+    color: "#777",
+  },
 
-toggleInactiveText:{
-color:"#777"
-},
+  label: {
+    color: "#888",
+    fontSize: 12,
+    marginTop: 10,
+  },
 
-label:{
-color:"#888",
-fontSize:12,
-marginTop:10
-},
+  input: {
+    backgroundColor: "#f2f2f2",
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 6,
+  },
 
-input:{
-backgroundColor:"#F2F2F2",
-padding:16,
-borderRadius:12,
-marginTop:6
-},
+  forgot: {
+    color: "#d40000",
+    textAlign: "right",
+    marginTop: 8,
+  },
 
-forgot:{
-color:"#d40000",
-textAlign:"right",
-marginTop:8
-},
+  twofaBox: {
+    borderWidth: 1,
+    borderColor: "#f2b6b6",
+    backgroundColor: "#fff5f5",
+    padding: 14,
+    borderRadius: 14,
+    marginTop: 15,
+  },
 
-twofaBox:{
-borderWidth:1,
-borderColor:"#f2b6b6",
-backgroundColor:"#fff5f5",
-padding:14,
-borderRadius:14,
-marginTop:15
-},
+  twofaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
 
-twofaRow:{
-flexDirection:"row",
-alignItems:"center",
-gap:8
-},
+  twofaTitle: {
+    fontWeight: "600",
+    marginLeft: 6,
+  },
 
-twofaTitle:{
-fontWeight:"600",
-marginLeft:6
-},
+  twofaSub: {
+    color: "#777",
+    marginTop: 4,
+  },
 
-twofaSub:{
-color:"#777",
-marginTop:4
-},
+  signin: {
+    backgroundColor: "#d40000",
+    padding: 18,
+    borderRadius: 16,
+    marginTop: 20,
+    alignItems: "center",
+    shadowColor: "#ff0000",
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
 
-signin:{
-backgroundColor:"#d40000",
-padding:18,
-borderRadius:16,
-marginTop:20,
-alignItems:"center",
-shadowColor:"#ff0000",
-shadowOpacity:0.5,
-shadowRadius:10,
-shadowOffset:{width:0,height:4}
-},
+  signinText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 18,
+  },
 
-signinText:{
-color:"#fff",
-fontWeight:"bold",
-fontSize:18
-},
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+  },
 
-dividerRow:{
-flexDirection:"row",
-alignItems:"center",
-marginTop:20
-},
+  dividerText: {
+    marginHorizontal: 8,
+    color: "#888",
+  },
 
-dividerText:{
-marginHorizontal:8,
-color:"#888"
-},
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#ddd",
+  },
 
-line:{
-flex:1,
-height:1,
-backgroundColor:"#ddd"
-},
+  socialRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
 
-socialRow:{
-flexDirection:"row",
-justifyContent:"space-between",
-marginTop:16
-},
+  socialButton: {
+    flexDirection: "row",
+    backgroundColor: "#f2f2f2",
+    padding: 14,
+    borderRadius: 12,
+    width: "48%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
-socialButton:{
-flexDirection:"row",
-backgroundColor:"#f2f2f2",
-padding:14,
-borderRadius:12,
-width:"48%",
-justifyContent:"center",
-alignItems:"center"
-},
+  socialText: {
+    fontWeight: "500",
+  },
 
-socialText:{
-fontWeight:"500"
-},
-
-infoText:{
-marginTop:14,
-textAlign:"center",
-color:"#888",
-fontSize:12
-}
-
+  infoText: {
+    marginTop: 14,
+    textAlign: "center",
+    color: "#888",
+    fontSize: 12,
+  },
 });

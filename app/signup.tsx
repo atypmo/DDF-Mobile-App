@@ -11,6 +11,7 @@ import {
 } from "react-native";
 
 import { FontAwesome } from "@expo/vector-icons";
+import Slider from "@react-native-community/slider";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -19,6 +20,7 @@ export default function Signup() {
 const [password,setPassword] = useState("")
 const [confirmPassword,setConfirmPassword] = useState("")
 const [showPassword,setShowPassword] = useState(false)
+const [age, setAge] = useState(18)
 
 let strength = 0
 
@@ -28,7 +30,7 @@ if(/[0-9]/.test(password)) strength++
 if(/[!@#$%^&*]/.test(password)) strength++
 
 let strengthColor = "#ff4d4d"
-let strengthWidth = "25%"
+let strengthWidth: `${number}%` = "25%"
 
 if(strength === 2){
 strengthColor = "#ff9900"
@@ -100,6 +102,23 @@ placeholder="John Doe"
 <TextInput
 style={styles.input}
 placeholder="your@email.com"
+/>
+
+<View style={styles.ageHeaderRow}>
+<Text style={styles.label}>AGE</Text>
+<Text style={styles.ageValue}>{age}</Text>
+</View>
+
+<Slider
+style={styles.ageSlider}
+minimumValue={13}
+maximumValue={100}
+step={1}
+value={age}
+minimumTrackTintColor="#d40000"
+maximumTrackTintColor="#d9d9d9"
+thumbTintColor="#d40000"
+onValueChange={setAge}
 />
 
 {/* PASSWORD */}
@@ -249,6 +268,25 @@ label:{
 color:"#888",
 fontSize:12,
 marginTop:10
+},
+
+ageHeaderRow:{
+marginTop:10,
+flexDirection:"row",
+justifyContent:"space-between",
+alignItems:"center"
+},
+
+ageValue:{
+color:"#d40000",
+fontSize:14,
+fontWeight:"700"
+},
+
+ageSlider:{
+width:"100%",
+height:36,
+marginTop:2
 },
 
 input:{
