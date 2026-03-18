@@ -45,7 +45,7 @@ export default function Login() {
         return;
       }
 
-      router.replace("/");
+      router.replace("/(tabs)/home");
     } catch {
       Alert.alert("Sign in failed", "Please try again.");
     } finally {
@@ -98,7 +98,7 @@ export default function Login() {
         return;
       }
 
-      router.replace("/");
+      router.replace("/(tabs)/home");
     } catch {
       Alert.alert("Gmail sign in failed", "Please try again.");
     } finally {
@@ -195,6 +195,19 @@ export default function Login() {
               <Text style={styles.signinText}>
                 {isSigningIn ? "Signing In..." : "Sign In"}
               </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.adminButton}
+              onPress={() =>
+                Alert.alert(
+                  "Admin Portal",
+                  "Admin login setup is coming next."
+                )
+              }
+            >
+              <FontAwesome name="shield" size={16} color="#7a0a0a" />
+              <Text style={styles.adminButtonText}>Admin Login</Text>
             </TouchableOpacity>
 
             <View style={styles.dividerRow}>
@@ -382,6 +395,26 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 18,
+  },
+
+  adminButton: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#f2c1c1",
+    backgroundColor: "#fff7f7",
+    borderRadius: 14,
+    height: 48,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  adminButtonText: {
+    color: "#7a0a0a",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 
   dividerRow: {
