@@ -7,12 +7,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 
 const ABOUT_TEXT =
-  "Dominance Forbes Foundation (DFF) supports youth and communities through mentorship, wellness, leadership, and opportunity-building programs. We focus on confidence, real support systems, and long-term growth pathways.";
+  "We empower Caribbean & African Diaspora communities and their descendants to build generational wealth, wisdom, and progression through a range of initiatives, including tailored programs, skill development workshops, educational seminars, community events, and essential living needs support";
 
 const IMPACT_TEXT =
-  "DFF's impact includes mentorship touchpoints, wellness engagement, educational support, and strategic community partnerships. Through events and programming, DFF works to create measurable and lasting outcomes.";
+  "We've worked on improving the lives of over 25,000 individuals through direct practice. Our numbers tell a story of growth and success, driving us to continuously improve and break our own records. However, we see beyond the statistics; each number represents an individual we care about. We are dedicated to making a positive impact on every person we interact with, ensuring that our growth translates into meaningful support and assistance for our community.";
 
-const YOUTUBE_EMBED_URL = "https://www.youtube.com/embed/videoseries?list=UU";
+const YOUTUBE_EMBED_URL = "https://www.youtube.com/embed/videoseries?list=UUblBMDfYj0OUST04bUp-kwg";
 
 type InfoKey = "about" | "impact";
 

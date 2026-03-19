@@ -24,6 +24,7 @@ WebBrowser.maybeCompleteAuthSession();
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isGmailLoading, setIsGmailLoading] = useState(false);
 
@@ -166,13 +167,18 @@ export default function Login() {
 
             <Text style={styles.label}>PASSWORD</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="********"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="********"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <FontAwesome name={showPassword ? "eye-slash" : "eye"} size={18} color="#666" />
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity>
               <Text style={styles.forgot}>Forgot your password?</Text>
@@ -346,6 +352,18 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginTop: 6,
+  },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f2f2f2",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginTop: 6,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 16,
   },
 
   forgot: {
