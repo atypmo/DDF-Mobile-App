@@ -19,6 +19,7 @@ type InfoKey = "about" | "impact";
 export default function HomeTab() {
   const [firstName, setFirstName] = useState("Member");
   const [activeInfo, setActiveInfo] = useState<InfoKey | null>(null);
+  const [showYoutubePlayer, setShowYoutubePlayer] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -103,17 +104,23 @@ export default function HomeTab() {
         <View style={styles.videoSection}>
           <Text style={styles.videoTitle}>DFF on YouTube</Text>
           <Text style={styles.videoSub}>Watch directly inside the app.</Text>
-
-          <View style={styles.videoFrame}>
-            <WebView
-              source={{ uri: YOUTUBE_EMBED_URL }}
-              style={styles.webview}
-              javaScriptEnabled
-              domStorageEnabled
-              allowsFullscreenVideo
-              mediaPlaybackRequiresUserAction={false}
-            />
-          </View>
+          {!showYoutubePlayer ? (
+            <Pressable style={styles.loadVideoButton} onPress={() => setShowYoutubePlayer(true)}>
+              <FontAwesome name="youtube-play" size={18} color="#fff" />
+              <Text style={styles.loadVideoButtonText}>Load YouTube Player</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.videoFrame}>
+              <WebView
+                source={{ uri: YOUTUBE_EMBED_URL }}
+                style={styles.webview}
+                javaScriptEnabled
+                domStorageEnabled
+                allowsFullscreenVideo
+                mediaPlaybackRequiresUserAction={false}
+              />
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -206,6 +213,21 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     height: 220,
     backgroundColor: "#000",
+  },
+  loadVideoButton: {
+    marginTop: 14,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#d40000",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  loadVideoButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
   },
   webview: {
     flex: 1,

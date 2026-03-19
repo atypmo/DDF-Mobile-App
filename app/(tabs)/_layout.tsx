@@ -6,6 +6,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        lazy: true,
+        freezeOnBlur: true,
         tabBarActiveTintColor: "#d40000",
         tabBarInactiveTintColor: "#7a7a7a",
         tabBarStyle: {
@@ -33,7 +35,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="mental-health-support"
         options={{
-          title: "Mental Health",
+          title: "Support",
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="heartbeat" size={size} color={color} />
           ),
@@ -42,7 +44,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="workout-partner"
         options={{
-          title: "Workout Partner",
+          title: "Workout",
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="users" size={size} color={color} />
           ),
