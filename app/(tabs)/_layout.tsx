@@ -1,7 +1,25 @@
 import { FontAwesome } from "@expo/vector-icons";
+import { useAppLanguage } from "@/hooks/use-app-language";
 import { Tabs } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 
 export default function TabsLayout() {
+  const [themeMode, setThemeMode] = useState<"dark" | "light">("dark");
+  const { isFrench } = useAppLanguage();
+
+  useEffect(() => {
+    const loadTheme = async () => {
+      const saved = await AsyncStorage.getItem("app_theme_mode");
+      if (saved === "light" || saved === "dark") {
+        setThemeMode(saved);
+      }
+    };
+    void loadTheme();
+  }, []);
+
+  const isDark = themeMode === "dark";
+
   return (
     <Tabs
       screenOptions={{
@@ -9,24 +27,24 @@ export default function TabsLayout() {
         lazy: true,
         freezeOnBlur: true,
         tabBarActiveTintColor: "#d40000",
-        tabBarInactiveTintColor: "#7a7a7a",
+        tabBarInactiveTintColor: isDark ? "#a7a1b5" : "#6f6780",
         tabBarStyle: {
-          height: 72,
+          height: 76,
           paddingBottom: 10,
           paddingTop: 10,
-          borderTopColor: "#ececec",
-          backgroundColor: "#ffffff",
+          borderTopColor: isDark ? "#2b2438" : "#e8deee",
+          backgroundColor: isDark ? "#120f19" : "#ffffff",
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "600",
+          fontWeight: "700",
         },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          title: "Home",
+          title: isFrench ? "Accueil" : "Home",
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="home" size={size} color={color} />
           ),
@@ -35,7 +53,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="mental-health-support"
         options={{
-          title: "Support",
+          title: isFrench ? "Soutien" : "Support",
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="heartbeat" size={size} color={color} />
           ),
@@ -44,7 +62,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="workout-partner"
         options={{
-          title: "Workout",
+          title: isFrench ? "Workout" : "Workout",
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="users" size={size} color={color} />
           ),
@@ -53,7 +71,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="events"
         options={{
-          title: "Events",
+          title: isFrench ? "Evenements" : "Events",
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="calendar" size={size} color={color} />
           ),
@@ -62,7 +80,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="contact"
         options={{
-          title: "Contact",
+          title: isFrench ? "Contact" : "Contact",
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="phone" size={size} color={color} />
           ),
@@ -71,7 +89,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: "Settings",
+          title: isFrench ? "Reglages" : "Settings",
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="cog" size={size} color={color} />
           ),
@@ -82,3 +100,4 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
