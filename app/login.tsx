@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { useAppLanguage } from "@/hooks/use-app-language";
 import { FontAwesome } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
@@ -22,8 +23,25 @@ import { SafeAreaView } from "react-native-safe-area-context";
 WebBrowser.maybeCompleteAuthSession();
 
 export default function Login() {
+  const { isFrench, language, persistLanguage } = useAppLanguage();
+  const t = {
+    signIn: isFrench ? "Se connecter" : "Sign In",
+    createAccount: isFrench ? "Creer un compte" : "Create Account",
+    email: "EMAIL",
+    password: isFrench ? "MOT DE PASSE" : "PASSWORD",
+    forgot: isFrench ? "Mot de passe oublie?" : "Forgot your password?",
+    admin: isFrench ? "Connexion Admin" : "Admin Login",
+    orContinue: isFrench ? "ou continuer avec" : "or continue with",
+    gmail: "Gmail",
+    facebook: "Facebook",
+    signingIn: isFrench ? "Connexion..." : "Signing In...",
+    firstInfo: isFrench ? "Verification email et mobile requise a la premiere connexion" : "Email and mobile verification required on first sign in",
+    english: "English",
+    french: "Francais",
+  };
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isGmailLoading, setIsGmailLoading] = useState(false);
 
@@ -140,20 +158,35 @@ export default function Login() {
           </View>
 
           <View style={styles.card}>
+            <View style={styles.languageRow}>
+              <TouchableOpacity
+                style={[styles.langChip, language === "en" && styles.langChipActive]}
+                onPress={() => void persistLanguage("en")}
+              >
+                <Text style={[styles.langChipText, language === "en" && styles.langChipTextActive]}>{t.english}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.langChip, language === "fr" && styles.langChipActive]}
+                onPress={() => void persistLanguage("fr")}
+              >
+                <Text style={[styles.langChipText, language === "fr" && styles.langChipTextActive]}>{t.french}</Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.toggle}>
               <View style={styles.toggleActive}>
-                <Text style={styles.toggleActiveText}>Sign In</Text>
+                <Text style={styles.toggleActiveText}>{t.signIn}</Text>
               </View>
 
               <TouchableOpacity
                 style={styles.toggleInactive}
                 onPress={() => router.push("/signup")}
               >
-                <Text style={styles.toggleInactiveText}>Create Account</Text>
+                <Text style={styles.toggleInactiveText}>{t.createAccount}</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>EMAIL</Text>
+            <Text style={styles.label}>{t.email}</Text>
 
             <TextInput
               style={styles.input}
@@ -164,18 +197,23 @@ export default function Login() {
               autoCapitalize="none"
             />
 
-            <Text style={styles.label}>PASSWORD</Text>
+            <Text style={styles.label}>{t.password}</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="********"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="********"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <FontAwesome name={showPassword ? "eye-slash" : "eye"} size={18} color="#666" />
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity>
-              <Text style={styles.forgot}>Forgot your password?</Text>
+              <Text style={styles.forgot}>{t.forgot}</Text>
             </TouchableOpacity>
 
             <View style={styles.twofaBox}>
@@ -193,7 +231,7 @@ export default function Login() {
               disabled={isSigningIn}
             >
               <Text style={styles.signinText}>
-                {isSigningIn ? "Signing In..." : "Sign In"}
+                {isSigningIn ? t.signingIn : t.signIn}
               </Text>
             </TouchableOpacity>
 
@@ -207,12 +245,12 @@ export default function Login() {
               }
             >
               <FontAwesome name="shield" size={16} color="#7a0a0a" />
-              <Text style={styles.adminButtonText}>Admin Login</Text>
+              <Text style={styles.adminButtonText}>{t.admin}</Text>
             </TouchableOpacity>
 
             <View style={styles.dividerRow}>
               <View style={styles.line} />
-              <Text style={styles.dividerText}>or continue with</Text>
+              <Text style={styles.dividerText}>{t.orContinue}</Text>
               <View style={styles.line} />
             </View>
 
@@ -224,18 +262,18 @@ export default function Login() {
               >
                 <FontAwesome name="google" size={18} color="#4285F4" />
                 <Text style={styles.socialText}>
-                  {isGmailLoading ? " Gmail..." : " Gmail"}
+                  {isGmailLoading ? ` ${t.gmail}...` : ` ${t.gmail}`}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.socialButton}>
                 <FontAwesome name="facebook" size={18} color="#1877F2" />
-                <Text style={styles.socialText}> Facebook</Text>
+                <Text style={styles.socialText}> {t.facebook}</Text>
               </TouchableOpacity>
             </View>
 
             <Text style={styles.infoText}>
-              Email and mobile verification required on first sign in
+              {t.firstInfo}
             </Text>
           </View>
         </ScrollView>
@@ -310,6 +348,37 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
+  languageRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8,
+    marginBottom: 10,
+  },
+
+  langChip: {
+    borderWidth: 1,
+    borderColor: "#d8d8d8",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "#f4f4f4",
+  },
+
+  langChipActive: {
+    borderColor: "#d40000",
+    backgroundColor: "#d40000",
+  },
+
+  langChipText: {
+    color: "#606060",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  langChipTextActive: {
+    color: "#fff",
+  },
+
   toggleActive: {
     flex: 1,
     backgroundColor: "#fff",
@@ -346,6 +415,18 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginTop: 6,
+  },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f2f2f2",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginTop: 6,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 16,
   },
 
   forgot: {
