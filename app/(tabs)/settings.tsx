@@ -1,10 +1,11 @@
 ﻿import { supabase } from "@/lib/supabase";
 import { useAppLanguage } from "@/hooks/use-app-language";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { useFocusEffect } from "@react-navigation/native";
 import { FontAwesome } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -17,6 +18,7 @@ type MenuItem = {
 
 const ACCOUNT_ITEMS: MenuItem[] = [
   { key: "account-status", icon: "check-circle", labelEn: "Account Status", labelFr: "Statut du compte" },
+  { key: "sms-2fa", icon: "mobile", labelEn: "SMS 2-Step Verification", labelFr: "Verification SMS a 2 etapes" },
   { key: "privacy-center", icon: "shield", labelEn: "Privacy Center", labelFr: "Centre de confidentialite" },
   { key: "about", icon: "info-circle", labelEn: "About", labelFr: "A propos" },
   { key: "refer", icon: "share-alt", labelEn: "Refer a Friend", labelFr: "Parrainer un ami" },
@@ -28,8 +30,22 @@ const SUPPORT_ITEMS: MenuItem[] = [
 
 export default function SettingsTab() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSmsEnabled, setIsSmsEnabled] = useState(false);
   const { themeMode, isDark, persistTheme } = useAppTheme();
   const { language, isFrench, persistLanguage } = useAppLanguage();
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadMfaStatus = async () => {
+        const { data } = await supabase.auth.mfa.listFactors();
+        const hasSms = (data?.all ?? []).some(
+          (factor) => factor.factor_type === "phone" && factor.status === "verified"
+        );
+        setIsSmsEnabled(hasSms);
+      };
+      void loadMfaStatus();
+    }, [])
+  );
 
   const text = {
     preferences: isFrench ? "Preferences" : "Preferences",
@@ -46,9 +62,27 @@ export default function SettingsTab() {
     french: "Francais",
     logout: isFrench ? "Se deconnecter" : "Log Out",
     loggingOut: isFrench ? "Deconnexion..." : "Logging out...",
+    smsStatus: isFrench
+      ? isSmsEnabled
+        ? "SMS 2 etapes active"
+        : "SMS 2 etapes non configuree"
+      : isSmsEnabled
+        ? "SMS 2-step is enabled"
+        : "SMS 2-step is not set up",
+    smsAction: isFrench
+      ? isSmsEnabled
+        ? "Mettre a jour SMS"
+        : "Configurer SMS"
+      : isSmsEnabled
+        ? "Manage SMS"
+        : "Set up SMS",
   };
 
-  const onMenuPress = (label: string) => {
+  const onMenuPress = (label: string, key: string) => {
+    if (key === "sms-2fa") {
+      router.push("/mfa-setup");
+      return;
+    }
     Alert.alert(label, isFrench ? "Cette section sera disponible bientot." : "This section will be available soon.");
   };
 
@@ -124,10 +158,23 @@ export default function SettingsTab() {
 
         <View style={[styles.card, { backgroundColor: isDark ? "#171321" : "#ffffff", borderColor: isDark ? "#2a2338" : "#ece0f1" }]}> 
           <Text style={[styles.sectionTitle, { color: isDark ? "#fff" : "#20172d" }]}>{text.accountSection}</Text>
+          <View style={styles.smsCard}>
+            <View style={styles.smsTextWrap}>
+              <Text style={[styles.smsTitle, { color: isDark ? "#fff" : "#20172d" }]}>SMS 2-Step Verification</Text>
+              <Text style={[styles.smsSub, { color: isDark ? "#c8c1d8" : "#6d6380" }]}>{text.smsStatus}</Text>
+            </View>
+            <Pressable style={styles.smsBtn} onPress={() => router.push("/mfa-setup")}>
+              <Text style={styles.smsBtnText}>{text.smsAction}</Text>
+            </Pressable>
+          </View>
           {ACCOUNT_ITEMS.map((item) => {
             const label = isFrench ? item.labelFr : item.labelEn;
             return (
-              <Pressable key={item.key} style={styles.menuRow} onPress={() => onMenuPress(label)}>
+              <Pressable
+                key={item.key}
+                style={styles.menuRow}
+                onPress={() => (item.key === "sms-2fa" ? router.push("/mfa-setup") : onMenuPress(label, item.key))}
+              >
                 <FontAwesome name={item.icon} size={16} color="#d40000" />
                 <Text style={[styles.menuLabel, { color: isDark ? "#f7f3ff" : "#332c42" }]}>{label}</Text>
               </Pressable>
@@ -140,7 +187,7 @@ export default function SettingsTab() {
           {SUPPORT_ITEMS.map((item) => {
             const label = isFrench ? item.labelFr : item.labelEn;
             return (
-              <Pressable key={item.key} style={styles.menuRow} onPress={() => onMenuPress(label)}>
+              <Pressable key={item.key} style={styles.menuRow} onPress={() => onMenuPress(label, item.key)}>
                 <FontAwesome name={item.icon} size={16} color="#d40000" />
                 <Text style={[styles.menuLabel, { color: isDark ? "#f7f3ff" : "#332c42" }]}>{label}</Text>
               </Pressable>
@@ -211,6 +258,38 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  smsCard: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#e7d9ea",
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "#fff7f7",
+  },
+  smsTextWrap: {
+    marginBottom: 10,
+  },
+  smsTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  smsSub: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  smsBtn: {
+    alignSelf: "flex-start",
+    backgroundColor: "#d40000",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  smsBtnText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 12,
   },
 
   logoutButton: {

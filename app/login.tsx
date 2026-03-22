@@ -5,7 +5,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Alert,
     Image,
@@ -44,6 +44,18 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isGmailLoading, setIsGmailLoading] = useState(false);
+  const [isSmsEnabled, setIsSmsEnabled] = useState(false);
+
+  useEffect(() => {
+    const loadMfaStatus = async () => {
+      const { data } = await supabase.auth.mfa.listFactors();
+      const hasSms = (data?.all ?? []).some(
+        (factor) => factor.factor_type === "phone" && factor.status === "verified"
+      );
+      setIsSmsEnabled(hasSms);
+    };
+    void loadMfaStatus();
+  }, []);
 
   const handleEmailSignIn = async () => {
     if (!email.trim() || !password.trim()) {
@@ -216,14 +228,20 @@ export default function Login() {
               <Text style={styles.forgot}>{t.forgot}</Text>
             </TouchableOpacity>
 
-            <View style={styles.twofaBox}>
+            <TouchableOpacity style={styles.twofaBox} onPress={() => router.push("/mfa-setup")}>
               <View style={styles.twofaRow}>
                 <FontAwesome name="lock" size={18} color="#d40000" />
-                <Text style={styles.twofaTitle}>2-Step Verification enabled</Text>
+                <Text style={styles.twofaTitle}>
+                  {isSmsEnabled ? "2-Step Verification enabled" : "Set up 2-Step Verification"}
+                </Text>
               </View>
 
-              <Text style={styles.twofaSub}>Authenticator app - SMS backup</Text>
-            </View>
+              <Text style={styles.twofaSub}>
+                {isSmsEnabled
+                  ? "Authenticator app - SMS backup"
+                  : "Tap here to enable SMS security"}
+              </Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.signin}

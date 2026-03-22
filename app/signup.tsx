@@ -30,6 +30,7 @@ export default function Signup() {
     "prefer_not_to_say"
   );
   const [consentChecked, setConsentChecked] = useState(false);
+  const [setupSms, setSetupSms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   let strength = 0;
@@ -107,8 +108,15 @@ export default function Signup() {
 
       Alert.alert(
         "Account created",
-        "Your account was created. If email confirmation is enabled, confirm your email before sign in.",
-        [{ text: "OK", onPress: () => router.replace("/login") }]
+        setupSms
+          ? "Account created. Sign in now, then complete SMS setup."
+          : "Your account was created. If email confirmation is enabled, confirm your email before sign in.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace(setupSms ? "/mfa-setup" : "/login"),
+          },
+        ]
       );
     } catch {
       Alert.alert("Create account failed", "Please try again.");
@@ -281,6 +289,15 @@ export default function Signup() {
               </View>
               <Text style={styles.consentText}>
                 I consent to my account data being used for authentication and profile setup.
+              </Text>
+            </Pressable>
+
+            <Pressable style={styles.consentRow} onPress={() => setSetupSms((prev) => !prev)}>
+              <View style={[styles.checkbox, setupSms && styles.checkboxChecked]}>
+                {setupSms ? <Text style={styles.checkmark}>x</Text> : null}
+              </View>
+              <Text style={styles.consentText}>
+                Set up SMS 2-step verification after account creation.
               </Text>
             </Pressable>
 
