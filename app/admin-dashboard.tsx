@@ -1,8 +1,11 @@
 import { useAppLanguage } from "@/hooks/use-app-language";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { supabase } from "@/lib/supabase";
 import { FontAwesome } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert } from "react-native";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -86,6 +89,47 @@ const ACTION_ITEMS: ActionItem[] = [
 export default function AdminDashboardScreen() {
   const { isDark } = useAppTheme();
   const { isFrench } = useAppLanguage();
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
+
+  useEffect(() => {
+    const guard = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user?.id) {
+          router.replace("/login");
+          return;
+        }
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role,is_admin")
+          .eq("id", user.id)
+          .single();
+        const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+        const appMetadata = (user.app_metadata ?? {}) as Record<string, unknown>;
+        const isAdmin =
+          profile?.role === "admin" ||
+          profile?.is_admin === true ||
+          metadata.role === "admin" ||
+          metadata.is_admin === true ||
+          appMetadata.role === "admin" ||
+          appMetadata.is_admin === true;
+
+        if (profileError) {
+          console.warn("Admin role check fallback to metadata:", profileError.message);
+        }
+        if (!isAdmin) {
+          Alert.alert("Access denied", "Admin access only.");
+          router.replace("/(tabs)/home");
+          return;
+        }
+      } finally {
+        setIsCheckingAdmin(false);
+      }
+    };
+    void guard();
+  }, []);
 
   const text = {
     kicker: isFrench ? "Portail admin" : "Admin Portal",
@@ -97,7 +141,16 @@ export default function AdminDashboardScreen() {
     actionsTitle: isFrench ? "Actions rapides" : "Quick Actions",
     backToLogin: isFrench ? "Retour a la connexion" : "Back to Login",
     openWorkspace: isFrench ? "Ouvrir l'espace admin" : "Open Admin Workspace",
+    manageEvents: isFrench ? "Gerer les evenements" : "Manage Events",
   };
+
+  if (isCheckingAdmin) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? "#0f0c15" : "#f6f2f8", justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color="#d40000" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: isDark ? "#0f0c15" : "#f6f2f8" }]}>
@@ -114,7 +167,16 @@ export default function AdminDashboardScreen() {
               <Text style={styles.heroBadgeText}>{text.kicker}</Text>
             </View>
 
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Pressable
+              style={styles.backButton}
+              onPress={() => {
+                if (router.canGoBack()) {
+                  router.back();
+                } else {
+                  router.replace("/login");
+                }
+              }}
+            >
               <FontAwesome name="chevron-left" size={12} color="#7a0a0a" />
               <Text style={styles.backButtonText}>{text.backToLogin}</Text>
             </Pressable>
@@ -123,9 +185,9 @@ export default function AdminDashboardScreen() {
           <Text style={[styles.heroTitle, { color: isDark ? "#fff" : "#221721" }]}>{text.title}</Text>
           <Text style={[styles.heroSub, { color: isDark ? "#d5cedf" : "#5d4f5e" }]}>{text.subtitle}</Text>
 
-          <Pressable style={styles.primaryButton}>
+          <Pressable style={styles.primaryButton} onPress={() => router.push("/admin-events")}>
             <FontAwesome name="lock" size={16} color="#fff" />
-            <Text style={styles.primaryButtonText}>{text.openWorkspace}</Text>
+            <Text style={styles.primaryButtonText}>{text.manageEvents}</Text>
           </Pressable>
         </LinearGradient>
 
@@ -190,7 +252,15 @@ export default function AdminDashboardScreen() {
           <Text style={[styles.sectionTitle, { color: isDark ? "#fff" : "#20172d" }]}>{text.actionsTitle}</Text>
 
           {ACTION_ITEMS.map((item) => (
-            <Pressable key={item.titleEn} style={styles.actionRow}>
+            <Pressable
+              key={item.titleEn}
+              style={styles.actionRow}
+              onPress={() => {
+                if (item.titleEn === "Manage events") {
+                  router.push("/admin-events");
+                }
+              }}
+            >
               <View style={styles.actionIcon}>
                 <FontAwesome name={item.icon} size={16} color="#d40000" />
               </View>

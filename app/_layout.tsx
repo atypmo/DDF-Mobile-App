@@ -8,6 +8,7 @@ export default function RootLayout() {
       <Stack.Screen name="signup" />
       <Stack.Screen name="persona" />
       <Stack.Screen name="mfa-setup" />
+      <Stack.Screen name="admin-events" />
       <Stack.Screen name="(tabs)" />
     </Stack>
   );

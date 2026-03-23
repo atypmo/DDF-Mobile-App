@@ -41,7 +41,6 @@ export default function Login() {
   };
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isGmailLoading, setIsGmailLoading] = useState(false);
   const [isSmsEnabled, setIsSmsEnabled] = useState(false);
@@ -74,7 +73,6 @@ export default function Login() {
         Alert.alert("Sign in failed", error.message);
         return;
       }
-
       router.replace("/(tabs)/home");
     } catch {
       Alert.alert("Sign in failed", "Please try again.");
@@ -133,6 +131,67 @@ export default function Login() {
       Alert.alert("Gmail sign in failed", "Please try again.");
     } finally {
       setIsGmailLoading(false);
+    }
+  };
+
+  const handleAdminLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Missing fields", "Enter email and password for admin login.");
+      return;
+    }
+    try {
+      setIsSigningIn(true);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) {
+        Alert.alert("Admin sign in failed", error.message);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user?.id) {
+        Alert.alert("Admin sign in failed", "No active user session.");
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role,is_admin")
+        .eq("id", user.id)
+        .single();
+
+      const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+      const appMetadata = (user.app_metadata ?? {}) as Record<string, unknown>;
+      const metadataRole = metadata.role ?? appMetadata.role;
+      const metadataIsAdmin = metadata.is_admin ?? appMetadata.is_admin;
+
+      const isAdmin =
+        profile?.role === "admin" ||
+        profile?.is_admin === true ||
+        metadataRole === "admin" ||
+        metadataIsAdmin === true;
+
+      if (profileError) {
+        console.warn("Admin role check fallback to metadata:", profileError.message);
+      }
+
+      if (!isAdmin) {
+        await supabase.auth.signOut();
+        Alert.alert(
+          "Access denied",
+          "This account is not marked as admin. Add role='admin' or is_admin=true in profiles."
+        );
+        return;
+      }
+      router.replace("/admin-dashboard");
+    } catch {
+      Alert.alert("Admin sign in failed", "Please try again.");
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -207,6 +266,9 @@ export default function Login() {
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
+              autoComplete="email"
+              textContentType="username"
+              importantForAutofill="yes"
             />
 
             <Text style={styles.label}>{t.password}</Text>
@@ -215,13 +277,13 @@ export default function Login() {
               <TextInput
                 style={styles.passwordInput}
                 placeholder="********"
-                secureTextEntry={!showPassword}
+                secureTextEntry
                 value={password}
                 onChangeText={setPassword}
+                autoComplete="password"
+                textContentType="password"
+                importantForAutofill="yes"
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <FontAwesome name={showPassword ? "eye-slash" : "eye"} size={18} color="#666" />
-              </TouchableOpacity>
             </View>
 
             <TouchableOpacity>
@@ -255,7 +317,7 @@ export default function Login() {
 
             <TouchableOpacity
               style={styles.adminButton}
-              onPress={() => router.push("/admin-dashboard")}
+              onPress={handleAdminLogin}
             >
               <FontAwesome name="shield" size={16} color="#7a0a0a" />
               <Text style={styles.adminButtonText}>{t.admin}</Text>
