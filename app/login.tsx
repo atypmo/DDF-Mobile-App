@@ -255,12 +255,7 @@ export default function Login() {
 
             <TouchableOpacity
               style={styles.adminButton}
-              onPress={() =>
-                Alert.alert(
-                  "Admin Portal",
-                  "Admin login setup is coming next."
-                )
-              }
+              onPress={() => router.push("/admin-dashboard")}
             >
               <FontAwesome name="shield" size={16} color="#7a0a0a" />
               <Text style={styles.adminButtonText}>{t.admin}</Text>
