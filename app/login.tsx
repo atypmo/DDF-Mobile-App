@@ -1,22 +1,23 @@
-import { supabase } from "@/lib/supabase";
 import { useAppLanguage } from "@/hooks/use-app-language";
+import { supabase } from "@/lib/supabase";
 import { FontAwesome } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -35,7 +36,9 @@ export default function Login() {
     gmail: "Gmail",
     facebook: "Facebook",
     signingIn: isFrench ? "Connexion..." : "Signing In...",
-    firstInfo: isFrench ? "Verification email et mobile requise a la premiere connexion" : "Email and mobile verification required on first sign in",
+    firstInfo: isFrench
+      ? "Verification email et mobile requise a la premiere connexion"
+      : "Email and mobile verification required on first sign in",
     english: "English",
     french: "Francais",
   };
@@ -49,12 +52,31 @@ export default function Login() {
     const loadMfaStatus = async () => {
       const { data } = await supabase.auth.mfa.listFactors();
       const hasSms = (data?.all ?? []).some(
-        (factor) => factor.factor_type === "phone" && factor.status === "verified"
+        (factor) =>
+          factor.factor_type === "phone" && factor.status === "verified",
       );
       setIsSmsEnabled(hasSms);
     };
     void loadMfaStatus();
   }, []);
+
+  const routeAfterMemberSignIn = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user?.id) {
+      router.replace("/(tabs)/home");
+      return;
+    }
+
+    const hasSeenTutorial = await AsyncStorage.getItem(
+      `tabs_tutorial_seen_${user.id}`,
+    );
+    router.replace(
+      hasSeenTutorial ? "/(tabs)/home" : "/(tabs)/home?tutorial=1",
+    );
+  };
 
   const handleEmailSignIn = async () => {
     if (!email.trim() || !password.trim()) {
@@ -73,7 +95,8 @@ export default function Login() {
         Alert.alert("Sign in failed", error.message);
         return;
       }
-      router.replace("/(tabs)/home");
+
+      await routeAfterMemberSignIn();
     } catch {
       Alert.alert("Sign in failed", "Please try again.");
     } finally {
@@ -104,7 +127,10 @@ export default function Login() {
         return;
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectTo,
+      );
       if (result.type !== "success" || !result.url) {
         return;
       }
@@ -115,18 +141,19 @@ export default function Login() {
       if (typeof code !== "string") {
         Alert.alert(
           "OAuth setup needed",
-          "Add your app redirect URL to Supabase Auth URL configuration."
+          "Add your app redirect URL to Supabase Auth URL configuration.",
         );
         return;
       }
 
-      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      const { error: exchangeError } =
+        await supabase.auth.exchangeCodeForSession(code);
       if (exchangeError) {
         Alert.alert("Gmail sign in failed", exchangeError.message);
         return;
       }
 
-      router.replace("/(tabs)/home");
+      await routeAfterMemberSignIn();
     } catch {
       Alert.alert("Gmail sign in failed", "Please try again.");
     } finally {
@@ -136,7 +163,10 @@ export default function Login() {
 
   const handleAdminLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert("Missing fields", "Enter email and password for admin login.");
+      Alert.alert(
+        "Missing fields",
+        "Enter email and password for admin login.",
+      );
       return;
     }
     try {
@@ -176,14 +206,17 @@ export default function Login() {
         metadataIsAdmin === true;
 
       if (profileError) {
-        console.warn("Admin role check fallback to metadata:", profileError.message);
+        console.warn(
+          "Admin role check fallback to metadata:",
+          profileError.message,
+        );
       }
 
       if (!isAdmin) {
         await supabase.auth.signOut();
         Alert.alert(
           "Access denied",
-          "This account is not marked as admin. Add role='admin' or is_admin=true in profiles."
+          "This account is not marked as admin. Add role='admin' or is_admin=true in profiles.",
         );
         return;
       }
@@ -231,16 +264,36 @@ export default function Login() {
           <View style={styles.card}>
             <View style={styles.languageRow}>
               <TouchableOpacity
-                style={[styles.langChip, language === "en" && styles.langChipActive]}
+                style={[
+                  styles.langChip,
+                  language === "en" && styles.langChipActive,
+                ]}
                 onPress={() => void persistLanguage("en")}
               >
-                <Text style={[styles.langChipText, language === "en" && styles.langChipTextActive]}>{t.english}</Text>
+                <Text
+                  style={[
+                    styles.langChipText,
+                    language === "en" && styles.langChipTextActive,
+                  ]}
+                >
+                  {t.english}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.langChip, language === "fr" && styles.langChipActive]}
+                style={[
+                  styles.langChip,
+                  language === "fr" && styles.langChipActive,
+                ]}
                 onPress={() => void persistLanguage("fr")}
               >
-                <Text style={[styles.langChipText, language === "fr" && styles.langChipTextActive]}>{t.french}</Text>
+                <Text
+                  style={[
+                    styles.langChipText,
+                    language === "fr" && styles.langChipTextActive,
+                  ]}
+                >
+                  {t.french}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -290,11 +343,16 @@ export default function Login() {
               <Text style={styles.forgot}>{t.forgot}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.twofaBox} onPress={() => router.push("/mfa-setup")}>
+            <TouchableOpacity
+              style={styles.twofaBox}
+              onPress={() => router.push("/mfa-setup")}
+            >
               <View style={styles.twofaRow}>
                 <FontAwesome name="lock" size={18} color="#d40000" />
                 <Text style={styles.twofaTitle}>
-                  {isSmsEnabled ? "2-Step Verification enabled" : "Set up 2-Step Verification"}
+                  {isSmsEnabled
+                    ? "2-Step Verification enabled"
+                    : "Set up 2-Step Verification"}
                 </Text>
               </View>
 
@@ -347,9 +405,7 @@ export default function Login() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.infoText}>
-              {t.firstInfo}
-            </Text>
+            <Text style={styles.infoText}>{t.firstInfo}</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

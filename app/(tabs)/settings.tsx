@@ -1,12 +1,20 @@
-﻿import { supabase } from "@/lib/supabase";
-import { useAppLanguage } from "@/hooks/use-app-language";
+﻿import { useAppLanguage } from "@/hooks/use-app-language";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { useFocusEffect } from "@react-navigation/native";
+import { supabase } from "@/lib/supabase";
+import { TAB_TUTORIAL_SLIDES } from "@/lib/tab-tutorial";
 import { FontAwesome } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type MenuItem = {
@@ -17,15 +25,41 @@ type MenuItem = {
 };
 
 const ACCOUNT_ITEMS: MenuItem[] = [
-  { key: "account-status", icon: "check-circle", labelEn: "Account Status", labelFr: "Statut du compte" },
-  { key: "sms-2fa", icon: "mobile", labelEn: "SMS 2-Step Verification", labelFr: "Verification SMS a 2 etapes" },
-  { key: "privacy-center", icon: "shield", labelEn: "Privacy Center", labelFr: "Centre de confidentialite" },
+  {
+    key: "account-status",
+    icon: "check-circle",
+    labelEn: "Account Status",
+    labelFr: "Statut du compte",
+  },
+  {
+    key: "sms-2fa",
+    icon: "mobile",
+    labelEn: "SMS 2-Step Verification",
+    labelFr: "Verification SMS a 2 etapes",
+  },
+  {
+    key: "privacy-center",
+    icon: "shield",
+    labelEn: "Privacy Center",
+    labelFr: "Centre de confidentialite",
+  },
   { key: "about", icon: "info-circle", labelEn: "About", labelFr: "A propos" },
-  { key: "refer", icon: "share-alt", labelEn: "Refer a Friend", labelFr: "Parrainer un ami" },
+  {
+    key: "refer",
+    icon: "share-alt",
+    labelEn: "Refer a Friend",
+    labelFr: "Parrainer un ami",
+  },
 ];
 
 const SUPPORT_ITEMS: MenuItem[] = [
   { key: "help", icon: "question-circle", labelEn: "Help", labelFr: "Aide" },
+  {
+    key: "app-tour",
+    icon: "compass",
+    labelEn: "App Tour",
+    labelFr: "Visite guidee",
+  },
 ];
 
 export default function SettingsTab() {
@@ -39,23 +73,31 @@ export default function SettingsTab() {
       const loadMfaStatus = async () => {
         const { data } = await supabase.auth.mfa.listFactors();
         const hasSms = (data?.all ?? []).some(
-          (factor) => factor.factor_type === "phone" && factor.status === "verified"
+          (factor) =>
+            factor.factor_type === "phone" && factor.status === "verified",
         );
         setIsSmsEnabled(hasSms);
       };
       void loadMfaStatus();
-    }, [])
+    }, []),
   );
 
   const text = {
     preferences: isFrench ? "Preferences" : "Preferences",
     settings: isFrench ? "Parametres" : "Settings",
-    subtitle: isFrench ? "Gerez votre compte et votre experience dans l'application." : "Manage your account and app experience.",
+    subtitle: isFrench
+      ? "Gerez votre compte et votre experience dans l'application."
+      : "Manage your account and app experience.",
     displayMode: isFrench ? "Mode d'affichage" : "Display Mode",
     languageLabel: isFrench ? "Langue" : "Language",
     accessibility: isFrench ? "Accessibilite" : "Accessibility",
     accountSection: isFrench ? "Compte" : "Account",
     supportSection: isFrench ? "Support" : "Support",
+    tutorialSection: isFrench ? "Tutoriel des onglets" : "Tab Tutorial",
+    tutorialSubtitle: isFrench
+      ? "Decouvrez le role de chaque onglet et la meilleure facon de l'utiliser."
+      : "See what each tab does and the best way to use it.",
+    tutorialReplay: isFrench ? "Relancer la visite guidee" : "Replay App Tour",
     dark: isFrench ? "Sombre" : "Dark",
     light: isFrench ? "Clair" : "Light",
     english: "English",
@@ -83,7 +125,19 @@ export default function SettingsTab() {
       router.push("/mfa-setup");
       return;
     }
-    Alert.alert(label, isFrench ? "Cette section sera disponible bientot." : "This section will be available soon.");
+    if (key === "app-tour") {
+      router.push({
+        pathname: "/(tabs)/home",
+        params: { tutorial: Date.now().toString() },
+      });
+      return;
+    }
+    Alert.alert(
+      label,
+      isFrench
+        ? "Cette section sera disponible bientot."
+        : "This section will be available soon.",
+    );
   };
 
   const handleLogout = async () => {
@@ -103,67 +157,187 @@ export default function SettingsTab() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? "#0f0c15" : "#f6f2f8" }]}> 
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "#0f0c15" : "#f6f2f8" },
+      ]}
+    >
       <ScrollView contentContainerStyle={styles.content}>
         <LinearGradient
           colors={isDark ? ["#1c1626", "#261616"] : ["#ffffff", "#f4edf8"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.hero, { borderWidth: 1, borderColor: isDark ? "#2a2338" : "#ece0f1" }]}
+          style={[
+            styles.hero,
+            { borderWidth: 1, borderColor: isDark ? "#2a2338" : "#ece0f1" },
+          ]}
         >
-          <Text style={[styles.heroKicker, { color: "#d40000" }]}>{text.preferences}</Text>
-          <Text style={[styles.heroTitle, { color: isDark ? "#fff" : "#1c1526" }]}>{text.settings}</Text>
-          <Text style={[styles.heroSub, { color: isDark ? "#ccc5db" : "#5f566d" }]}>{text.subtitle}</Text>
+          <Text style={[styles.heroKicker, { color: "#d40000" }]}>
+            {text.preferences}
+          </Text>
+          <Text
+            style={[styles.heroTitle, { color: isDark ? "#fff" : "#1c1526" }]}
+          >
+            {text.settings}
+          </Text>
+          <Text
+            style={[styles.heroSub, { color: isDark ? "#ccc5db" : "#5f566d" }]}
+          >
+            {text.subtitle}
+          </Text>
         </LinearGradient>
 
-        <View style={[styles.card, { backgroundColor: isDark ? "#171321" : "#ffffff", borderColor: isDark ? "#2a2338" : "#ece0f1" }]}> 
-          <Text style={[styles.sectionTitle, { color: isDark ? "#fff" : "#20172d" }]}>{text.displayMode}</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#171321" : "#ffffff",
+              borderColor: isDark ? "#2a2338" : "#ece0f1",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: isDark ? "#fff" : "#20172d" },
+            ]}
+          >
+            {text.displayMode}
+          </Text>
           <View style={styles.chipRow}>
             <Pressable
               style={[styles.chip, themeMode === "dark" && styles.chipActive]}
               onPress={() => void persistTheme("dark")}
             >
-              <FontAwesome name="moon-o" size={14} color={themeMode === "dark" ? "#fff" : "#6b617d"} />
-              <Text style={[styles.chipText, themeMode === "dark" && styles.chipTextActive]}>{text.dark}</Text>
+              <FontAwesome
+                name="moon-o"
+                size={14}
+                color={themeMode === "dark" ? "#fff" : "#6b617d"}
+              />
+              <Text
+                style={[
+                  styles.chipText,
+                  themeMode === "dark" && styles.chipTextActive,
+                ]}
+              >
+                {text.dark}
+              </Text>
             </Pressable>
 
             <Pressable
               style={[styles.chip, themeMode === "light" && styles.chipActive]}
               onPress={() => void persistTheme("light")}
             >
-              <FontAwesome name="sun-o" size={14} color={themeMode === "light" ? "#fff" : "#6b617d"} />
-              <Text style={[styles.chipText, themeMode === "light" && styles.chipTextActive]}>{text.light}</Text>
+              <FontAwesome
+                name="sun-o"
+                size={14}
+                color={themeMode === "light" ? "#fff" : "#6b617d"}
+              />
+              <Text
+                style={[
+                  styles.chipText,
+                  themeMode === "light" && styles.chipTextActive,
+                ]}
+              >
+                {text.light}
+              </Text>
             </Pressable>
           </View>
         </View>
 
-        <View style={[styles.card, { backgroundColor: isDark ? "#171321" : "#ffffff", borderColor: isDark ? "#2a2338" : "#ece0f1" }]}> 
-          <Text style={[styles.sectionTitle, { color: isDark ? "#fff" : "#20172d" }]}>{text.accessibility}</Text>
-          <Text style={[styles.rowLabel, { color: isDark ? "#c8c1d8" : "#6d6380" }]}>{text.languageLabel}</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#171321" : "#ffffff",
+              borderColor: isDark ? "#2a2338" : "#ece0f1",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: isDark ? "#fff" : "#20172d" },
+            ]}
+          >
+            {text.accessibility}
+          </Text>
+          <Text
+            style={[styles.rowLabel, { color: isDark ? "#c8c1d8" : "#6d6380" }]}
+          >
+            {text.languageLabel}
+          </Text>
           <View style={styles.chipRow}>
             <Pressable
               style={[styles.chip, language === "en" && styles.chipActive]}
               onPress={() => void persistLanguage("en")}
             >
-              <Text style={[styles.chipText, language === "en" && styles.chipTextActive]}>{text.english}</Text>
+              <Text
+                style={[
+                  styles.chipText,
+                  language === "en" && styles.chipTextActive,
+                ]}
+              >
+                {text.english}
+              </Text>
             </Pressable>
             <Pressable
               style={[styles.chip, language === "fr" && styles.chipActive]}
               onPress={() => void persistLanguage("fr")}
             >
-              <Text style={[styles.chipText, language === "fr" && styles.chipTextActive]}>{text.french}</Text>
+              <Text
+                style={[
+                  styles.chipText,
+                  language === "fr" && styles.chipTextActive,
+                ]}
+              >
+                {text.french}
+              </Text>
             </Pressable>
           </View>
         </View>
 
-        <View style={[styles.card, { backgroundColor: isDark ? "#171321" : "#ffffff", borderColor: isDark ? "#2a2338" : "#ece0f1" }]}> 
-          <Text style={[styles.sectionTitle, { color: isDark ? "#fff" : "#20172d" }]}>{text.accountSection}</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#171321" : "#ffffff",
+              borderColor: isDark ? "#2a2338" : "#ece0f1",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: isDark ? "#fff" : "#20172d" },
+            ]}
+          >
+            {text.accountSection}
+          </Text>
           <View style={styles.smsCard}>
             <View style={styles.smsTextWrap}>
-              <Text style={[styles.smsTitle, { color: isDark ? "#fff" : "#20172d" }]}>SMS 2-Step Verification</Text>
-              <Text style={[styles.smsSub, { color: isDark ? "#c8c1d8" : "#6d6380" }]}>{text.smsStatus}</Text>
+              <Text
+                style={[
+                  styles.smsTitle,
+                  { color: isDark ? "#fff" : "#20172d" },
+                ]}
+              >
+                SMS 2-Step Verification
+              </Text>
+              <Text
+                style={[
+                  styles.smsSub,
+                  { color: isDark ? "#c8c1d8" : "#6d6380" },
+                ]}
+              >
+                {text.smsStatus}
+              </Text>
             </View>
-            <Pressable style={styles.smsBtn} onPress={() => router.push("/mfa-setup")}>
+            <Pressable
+              style={styles.smsBtn}
+              onPress={() => router.push("/mfa-setup")}
+            >
               <Text style={styles.smsBtnText}>{text.smsAction}</Text>
             </Pressable>
           </View>
@@ -173,30 +347,156 @@ export default function SettingsTab() {
               <Pressable
                 key={item.key}
                 style={styles.menuRow}
-                onPress={() => (item.key === "sms-2fa" ? router.push("/mfa-setup") : onMenuPress(label, item.key))}
+                onPress={() =>
+                  item.key === "sms-2fa"
+                    ? router.push("/mfa-setup")
+                    : onMenuPress(label, item.key)
+                }
               >
                 <FontAwesome name={item.icon} size={16} color="#d40000" />
-                <Text style={[styles.menuLabel, { color: isDark ? "#f7f3ff" : "#332c42" }]}>{label}</Text>
+                <Text
+                  style={[
+                    styles.menuLabel,
+                    { color: isDark ? "#f7f3ff" : "#332c42" },
+                  ]}
+                >
+                  {label}
+                </Text>
               </Pressable>
             );
           })}
         </View>
 
-        <View style={[styles.card, { backgroundColor: isDark ? "#171321" : "#ffffff", borderColor: isDark ? "#2a2338" : "#ece0f1" }]}> 
-          <Text style={[styles.sectionTitle, { color: isDark ? "#fff" : "#20172d" }]}>{text.supportSection}</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#171321" : "#ffffff",
+              borderColor: isDark ? "#2a2338" : "#ece0f1",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: isDark ? "#fff" : "#20172d" },
+            ]}
+          >
+            {text.supportSection}
+          </Text>
           {SUPPORT_ITEMS.map((item) => {
             const label = isFrench ? item.labelFr : item.labelEn;
             return (
-              <Pressable key={item.key} style={styles.menuRow} onPress={() => onMenuPress(label, item.key)}>
+              <Pressable
+                key={item.key}
+                style={styles.menuRow}
+                onPress={() => onMenuPress(label, item.key)}
+              >
                 <FontAwesome name={item.icon} size={16} color="#d40000" />
-                <Text style={[styles.menuLabel, { color: isDark ? "#f7f3ff" : "#332c42" }]}>{label}</Text>
+                <Text
+                  style={[
+                    styles.menuLabel,
+                    { color: isDark ? "#f7f3ff" : "#332c42" },
+                  ]}
+                >
+                  {label}
+                </Text>
               </Pressable>
             );
           })}
         </View>
 
-        <Pressable style={styles.logoutButton} onPress={handleLogout} disabled={isLoggingOut}>
-          <Text style={styles.logoutText}>{isLoggingOut ? text.loggingOut : text.logout}</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#171321" : "#ffffff",
+              borderColor: isDark ? "#2a2338" : "#ece0f1",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: isDark ? "#fff" : "#20172d" },
+            ]}
+          >
+            {text.tutorialSection}
+          </Text>
+          <Text
+            style={[
+              styles.sectionCaption,
+              { color: isDark ? "#c8c1d8" : "#6d6380" },
+            ]}
+          >
+            {text.tutorialSubtitle}
+          </Text>
+
+          {TAB_TUTORIAL_SLIDES.map((item) => (
+            <View
+              key={item.key}
+              style={[
+                styles.tutorialRow,
+                {
+                  backgroundColor: isDark ? "#211a2e" : "#faf7fc",
+                  borderColor: isDark ? "#2f2740" : "#ece0f1",
+                },
+              ]}
+            >
+              <View style={styles.tutorialIconWrap}>
+                <FontAwesome name={item.icon} size={16} color="#d40000" />
+              </View>
+              <View style={styles.tutorialTextWrap}>
+                <Text
+                  style={[
+                    styles.tutorialTitle,
+                    { color: isDark ? "#fff" : "#20172d" },
+                  ]}
+                >
+                  {isFrench ? item.titleFr : item.titleEn}
+                </Text>
+                <Text
+                  style={[
+                    styles.tutorialSummary,
+                    { color: isDark ? "#c8c1d8" : "#6d6380" },
+                  ]}
+                >
+                  {isFrench ? item.summaryFr : item.summaryEn}
+                </Text>
+                <Text
+                  style={[
+                    styles.tutorialHowTo,
+                    { color: isDark ? "#eee7fb" : "#433a54" },
+                  ]}
+                >
+                  {isFrench ? item.howToFr : item.howToEn}
+                </Text>
+              </View>
+            </View>
+          ))}
+
+          <Pressable
+            style={styles.tutorialReplayButton}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/home",
+                params: { tutorial: Date.now().toString() },
+              })
+            }
+          >
+            <FontAwesome name="compass" size={16} color="#fff" />
+            <Text style={styles.tutorialReplayText}>{text.tutorialReplay}</Text>
+          </Pressable>
+        </View>
+
+        <Pressable
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          disabled={isLoggingOut}
+        >
+          <Text style={styles.logoutText}>
+            {isLoggingOut ? text.loggingOut : text.logout}
+          </Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -218,6 +518,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   sectionTitle: { fontSize: 16, fontWeight: "800" },
+  sectionCaption: { marginTop: 4, fontSize: 14, lineHeight: 20 },
   rowLabel: { marginTop: 8, fontSize: 13, fontWeight: "600" },
 
   chipRow: {
@@ -258,6 +559,56 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  tutorialRow: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: "row",
+    gap: 12,
+  },
+  tutorialIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(212, 0, 0, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  tutorialTextWrap: {
+    flex: 1,
+  },
+  tutorialTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  tutorialSummary: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  tutorialHowTo: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+  tutorialReplayButton: {
+    marginTop: 16,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#d40000",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  tutorialReplayText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "800",
   },
   smsCard: {
     marginTop: 12,

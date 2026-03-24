@@ -5,8 +5,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert } from "react-native";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type StatCard = {
@@ -33,9 +32,24 @@ type ActionItem = {
 };
 
 const STAT_CARDS: StatCard[] = [
-  { labelEn: "Active members", labelFr: "Membres actifs", value: "1,284", icon: "users" },
-  { labelEn: "Open requests", labelFr: "Demandes ouvertes", value: "37", icon: "inbox" },
-  { labelEn: "Events this month", labelFr: "Evenements ce mois-ci", value: "12", icon: "calendar" },
+  {
+    labelEn: "Active members",
+    labelFr: "Membres actifs",
+    value: "1,284",
+    icon: "users",
+  },
+  {
+    labelEn: "Open requests",
+    labelFr: "Demandes ouvertes",
+    value: "37",
+    icon: "inbox",
+  },
+  {
+    labelEn: "Events this month",
+    labelFr: "Evenements ce mois-ci",
+    value: "12",
+    icon: "calendar",
+  },
 ];
 
 const QUEUE_ITEMS: QueueItem[] = [
@@ -66,15 +80,18 @@ const ACTION_ITEMS: ActionItem[] = [
   {
     titleEn: "Review new members",
     titleFr: "Examiner les nouveaux membres",
-    descriptionEn: "Approve profiles, confirm onboarding details, and assign access.",
-    descriptionFr: "Approuvez les profils, confirmez l'inscription et attribuez l'acces.",
+    descriptionEn:
+      "Approve profiles, confirm onboarding details, and assign access.",
+    descriptionFr:
+      "Approuvez les profils, confirmez l'inscription et attribuez l'acces.",
     icon: "user-plus",
   },
   {
     titleEn: "Manage events",
     titleFr: "Gerer les evenements",
     descriptionEn: "Create sessions, update schedules, and publish reminders.",
-    descriptionFr: "Creez des sessions, mettez a jour le calendrier et publiez des rappels.",
+    descriptionFr:
+      "Creez des sessions, mettez a jour le calendrier et publiez des rappels.",
     icon: "calendar-check-o",
   },
   {
@@ -107,7 +124,10 @@ export default function AdminDashboardScreen() {
           .eq("id", user.id)
           .single();
         const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
-        const appMetadata = (user.app_metadata ?? {}) as Record<string, unknown>;
+        const appMetadata = (user.app_metadata ?? {}) as Record<
+          string,
+          unknown
+        >;
         const isAdmin =
           profile?.role === "admin" ||
           profile?.is_admin === true ||
@@ -117,7 +137,10 @@ export default function AdminDashboardScreen() {
           appMetadata.is_admin === true;
 
         if (profileError) {
-          console.warn("Admin role check fallback to metadata:", profileError.message);
+          console.warn(
+            "Admin role check fallback to metadata:",
+            profileError.message,
+          );
         }
         if (!isAdmin) {
           Alert.alert("Access denied", "Admin access only.");
@@ -146,14 +169,28 @@ export default function AdminDashboardScreen() {
 
   if (isCheckingAdmin) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: isDark ? "#0f0c15" : "#f6f2f8", justifyContent: "center", alignItems: "center" }]}>
+      <SafeAreaView
+        style={[
+          styles.container,
+          {
+            backgroundColor: isDark ? "#0f0c15" : "#f6f2f8",
+            justifyContent: "center",
+            alignItems: "center",
+          },
+        ]}
+      >
         <ActivityIndicator size="large" color="#d40000" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? "#0f0c15" : "#f6f2f8" }]}>
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? "#0f0c15" : "#f6f2f8" },
+      ]}
+    >
       <ScrollView contentContainerStyle={styles.content}>
         <LinearGradient
           colors={isDark ? ["#1a1425", "#3b1212"] : ["#ffffff", "#f8e7e7"]}
@@ -182,10 +219,21 @@ export default function AdminDashboardScreen() {
             </Pressable>
           </View>
 
-          <Text style={[styles.heroTitle, { color: isDark ? "#fff" : "#221721" }]}>{text.title}</Text>
-          <Text style={[styles.heroSub, { color: isDark ? "#d5cedf" : "#5d4f5e" }]}>{text.subtitle}</Text>
+          <Text
+            style={[styles.heroTitle, { color: isDark ? "#fff" : "#221721" }]}
+          >
+            {text.title}
+          </Text>
+          <Text
+            style={[styles.heroSub, { color: isDark ? "#d5cedf" : "#5d4f5e" }]}
+          >
+            {text.subtitle}
+          </Text>
 
-          <Pressable style={styles.primaryButton} onPress={() => router.push("/admin-events")}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => router.push("/admin-events")}
+          >
             <FontAwesome name="lock" size={16} color="#fff" />
             <Text style={styles.primaryButtonText}>{text.manageEvents}</Text>
           </Pressable>
@@ -204,8 +252,20 @@ export default function AdminDashboardScreen() {
               ]}
             >
               <FontAwesome name={item.icon} size={18} color="#d40000" />
-              <Text style={[styles.statValue, { color: isDark ? "#fff" : "#20172d" }]}>{item.value}</Text>
-              <Text style={[styles.statLabel, { color: isDark ? "#c8c1d8" : "#6d6380" }]}>
+              <Text
+                style={[
+                  styles.statValue,
+                  { color: isDark ? "#fff" : "#20172d" },
+                ]}
+              >
+                {item.value}
+              </Text>
+              <Text
+                style={[
+                  styles.statLabel,
+                  { color: isDark ? "#c8c1d8" : "#6d6380" },
+                ]}
+              >
                 {isFrench ? item.labelFr : item.labelEn}
               </Text>
             </View>
@@ -221,15 +281,32 @@ export default function AdminDashboardScreen() {
             },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: isDark ? "#fff" : "#20172d" }]}>{text.queueTitle}</Text>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: isDark ? "#fff" : "#20172d" },
+            ]}
+          >
+            {text.queueTitle}
+          </Text>
 
           {QUEUE_ITEMS.map((item) => (
             <View key={item.titleEn} style={styles.queueRow}>
               <View style={styles.queueTextWrap}>
-                <Text style={[styles.queueTitle, { color: isDark ? "#fff" : "#20172d" }]}>
+                <Text
+                  style={[
+                    styles.queueTitle,
+                    { color: isDark ? "#fff" : "#20172d" },
+                  ]}
+                >
                   {isFrench ? item.titleFr : item.titleEn}
                 </Text>
-                <Text style={[styles.queueNote, { color: isDark ? "#c8c1d8" : "#6d6380" }]}>
+                <Text
+                  style={[
+                    styles.queueNote,
+                    { color: isDark ? "#c8c1d8" : "#6d6380" },
+                  ]}
+                >
                   {isFrench ? item.noteFr : item.noteEn}
                 </Text>
               </View>
@@ -249,7 +326,14 @@ export default function AdminDashboardScreen() {
             },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: isDark ? "#fff" : "#20172d" }]}>{text.actionsTitle}</Text>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: isDark ? "#fff" : "#20172d" },
+            ]}
+          >
+            {text.actionsTitle}
+          </Text>
 
           {ACTION_ITEMS.map((item) => (
             <Pressable
@@ -265,14 +349,28 @@ export default function AdminDashboardScreen() {
                 <FontAwesome name={item.icon} size={16} color="#d40000" />
               </View>
               <View style={styles.actionTextWrap}>
-                <Text style={[styles.actionTitle, { color: isDark ? "#fff" : "#20172d" }]}>
+                <Text
+                  style={[
+                    styles.actionTitle,
+                    { color: isDark ? "#fff" : "#20172d" },
+                  ]}
+                >
                   {isFrench ? item.titleFr : item.titleEn}
                 </Text>
-                <Text style={[styles.actionDescription, { color: isDark ? "#c8c1d8" : "#6d6380" }]}>
+                <Text
+                  style={[
+                    styles.actionDescription,
+                    { color: isDark ? "#c8c1d8" : "#6d6380" },
+                  ]}
+                >
                   {isFrench ? item.descriptionFr : item.descriptionEn}
                 </Text>
               </View>
-              <FontAwesome name="chevron-right" size={14} color={isDark ? "#8f85a3" : "#8f829f"} />
+              <FontAwesome
+                name="chevron-right"
+                size={14}
+                color={isDark ? "#8f85a3" : "#8f829f"}
+              />
             </Pressable>
           ))}
         </View>
