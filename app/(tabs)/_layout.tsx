@@ -98,7 +98,7 @@ export default function TabsLayout() {
             backgroundColor: isDark ? "#120f19" : "#ffffff",
           },
           tabBarLabelStyle: {
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: "700",
           },
         }}
@@ -124,7 +124,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="workout-partner"
           options={{
-            title: isFrench ? "Workout" : "Workout",
+            title: isFrench ? "Partenaire" : "Workout",
             tabBarIcon: ({ color, size }) => (
               <FontAwesome name="users" size={size} color={color} />
             ),

@@ -1,9 +1,7 @@
 import { useAppLanguage } from "@/hooks/use-app-language";
 import { supabase } from "@/lib/supabase";
 import { FontAwesome } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
-import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
@@ -42,6 +40,7 @@ export default function Login() {
     english: "English",
     french: "Francais",
   };
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -52,51 +51,29 @@ export default function Login() {
     const loadMfaStatus = async () => {
       const { data } = await supabase.auth.mfa.listFactors();
       const hasSms = (data?.all ?? []).some(
-        (factor) =>
-          factor.factor_type === "phone" && factor.status === "verified",
+        (factor) => factor.factor_type === "phone" && factor.status === "verified"
       );
       setIsSmsEnabled(hasSms);
     };
     void loadMfaStatus();
   }, []);
 
-  const routeAfterMemberSignIn = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user?.id) {
-      router.replace("/(tabs)/home");
-      return;
-    }
-
-    const hasSeenTutorial = await AsyncStorage.getItem(
-      `tabs_tutorial_seen_${user.id}`,
-    );
-    router.replace(
-      hasSeenTutorial ? "/(tabs)/home" : "/(tabs)/home?tutorial=1",
-    );
-  };
-
   const handleEmailSignIn = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert("Missing fields", "Enter both email and password.");
       return;
     }
-
     try {
       setIsSigningIn(true);
       const { error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
-
       if (error) {
         Alert.alert("Sign in failed", error.message);
         return;
       }
-
-      await routeAfterMemberSignIn();
+      router.replace("/(tabs)/home");
     } catch {
       Alert.alert("Sign in failed", "Please try again.");
     } finally {
@@ -104,69 +81,79 @@ export default function Login() {
     }
   };
 
-  const handleGmailSignIn = async () => {
-    try {
-      setIsGmailLoading(true);
+const handleGmailSignIn = async () => {
+  try {
+    setIsGmailLoading(true);
+    const redirectTo = "dffcommunityapp://";
 
-      const redirectTo = Linking.createURL("/");
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          skipBrowserRedirect: true,
-        },
-      });
-
-      if (error) {
-        Alert.alert("Gmail sign in failed", error.message);
-        return;
-      }
-
-      if (!data?.url) {
-        Alert.alert("Gmail sign in failed", "Could not start OAuth flow.");
-        return;
-      }
-
-      const result = await WebBrowser.openAuthSessionAsync(
-        data.url,
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
         redirectTo,
-      );
-      if (result.type !== "success" || !result.url) {
-        return;
-      }
+        skipBrowserRedirect: true,
+      },
+    });
 
-      const parsed = Linking.parse(result.url);
-      const code = parsed.queryParams?.code;
-
-      if (typeof code !== "string") {
-        Alert.alert(
-          "OAuth setup needed",
-          "Add your app redirect URL to Supabase Auth URL configuration.",
-        );
-        return;
-      }
-
-      const { error: exchangeError } =
-        await supabase.auth.exchangeCodeForSession(code);
-      if (exchangeError) {
-        Alert.alert("Gmail sign in failed", exchangeError.message);
-        return;
-      }
-
-      await routeAfterMemberSignIn();
-    } catch {
-      Alert.alert("Gmail sign in failed", "Please try again.");
-    } finally {
-      setIsGmailLoading(false);
+    if (error) {
+      Alert.alert("Gmail sign in failed", error.message);
+      return;
     }
-  };
+
+    if (!data?.url) {
+      Alert.alert("Gmail sign in failed", "Could not start OAuth flow.");
+      return;
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+    if (result.type !== "success" || !result.url) return;
+
+    // Parse fragment tokens from URL
+    const url = result.url;
+    const fragmentString = url.includes("#") ? url.split("#")[1] : "";
+    const fragmentParams: Record<string, string> = {};
+    fragmentString.split("&").forEach((pair) => {
+      const [key, value] = pair.split("=");
+      if (key && value) fragmentParams[key] = decodeURIComponent(value);
+    });
+
+    const accessToken = fragmentParams["access_token"];
+    const refreshToken = fragmentParams["refresh_token"];
+
+    if (accessToken && refreshToken) {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (sessionError) {
+        Alert.alert("Gmail sign in failed", sessionError.message);
+        return;
+      }
+      router.replace("/(tabs)/home");
+      return;
+    }
+
+    // Fallback — check if session was set automatically
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session) {
+      router.replace("/(tabs)/home");
+      return;
+    }
+
+    Alert.alert(
+      "Sign in incomplete",
+      "Could not retrieve session. Try signing in with email instead."
+    );
+  } catch {
+    Alert.alert("Gmail sign in failed", "Please try again.");
+  } finally {
+    setIsGmailLoading(false);
+  }
+};
 
   const handleAdminLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert(
-        "Missing fields",
-        "Enter email and password for admin login.",
-      );
+      Alert.alert("Missing fields", "Enter email and password for admin login.");
       return;
     }
     try {
@@ -206,17 +193,14 @@ export default function Login() {
         metadataIsAdmin === true;
 
       if (profileError) {
-        console.warn(
-          "Admin role check fallback to metadata:",
-          profileError.message,
-        );
+        console.warn("Admin role check fallback to metadata:", profileError.message);
       }
 
       if (!isAdmin) {
         await supabase.auth.signOut();
         Alert.alert(
           "Access denied",
-          "This account is not marked as admin. Add role='admin' or is_admin=true in profiles.",
+          "This account is not marked as admin. Add role='admin' or is_admin=true in profiles."
         );
         return;
       }
@@ -240,6 +224,7 @@ export default function Login() {
             backgroundColor: "#fff",
           }}
         >
+          {/* HEADER */}
           <View style={styles.header}>
             <LinearGradient
               colors={["#000000", "#000000", "#2a0000", "#5a0000"]}
@@ -247,61 +232,44 @@ export default function Login() {
               end={{ x: 1, y: 1 }}
               style={styles.gradient}
             />
-
             <Image
               source={require("../assets/images/IMG_5141.png")}
               style={styles.logo}
             />
-
             <Text style={styles.logoText}>D F F</Text>
-
             <Text style={styles.foundation}>DOMINANCE FORBES FOUNDATION</Text>
-
             <Text style={styles.tagline}>Strength in Unity.</Text>
             <Text style={styles.tagline}>We Shape Tomorrow.</Text>
           </View>
 
+          {/* CARD */}
           <View style={styles.card}>
+
+            {/* LANGUAGE ROW */}
             <View style={styles.languageRow}>
               <TouchableOpacity
-                style={[
-                  styles.langChip,
-                  language === "en" && styles.langChipActive,
-                ]}
+                style={[styles.langChip, language === "en" && styles.langChipActive]}
                 onPress={() => void persistLanguage("en")}
               >
-                <Text
-                  style={[
-                    styles.langChipText,
-                    language === "en" && styles.langChipTextActive,
-                  ]}
-                >
+                <Text style={[styles.langChipText, language === "en" && styles.langChipTextActive]}>
                   {t.english}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.langChip,
-                  language === "fr" && styles.langChipActive,
-                ]}
+                style={[styles.langChip, language === "fr" && styles.langChipActive]}
                 onPress={() => void persistLanguage("fr")}
               >
-                <Text
-                  style={[
-                    styles.langChipText,
-                    language === "fr" && styles.langChipTextActive,
-                  ]}
-                >
+                <Text style={[styles.langChipText, language === "fr" && styles.langChipTextActive]}>
                   {t.french}
                 </Text>
               </TouchableOpacity>
             </View>
 
+            {/* TOGGLE */}
             <View style={styles.toggle}>
               <View style={styles.toggleActive}>
                 <Text style={styles.toggleActiveText}>{t.signIn}</Text>
               </View>
-
               <TouchableOpacity
                 style={styles.toggleInactive}
                 onPress={() => router.push("/signup")}
@@ -310,8 +278,8 @@ export default function Login() {
               </TouchableOpacity>
             </View>
 
+            {/* EMAIL */}
             <Text style={styles.label}>{t.email}</Text>
-
             <TextInput
               style={styles.input}
               placeholder="your@email.com"
@@ -324,12 +292,12 @@ export default function Login() {
               importantForAutofill="yes"
             />
 
+            {/* PASSWORD */}
             <Text style={styles.label}>{t.password}</Text>
-
             <View style={styles.passwordRow}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="********"
+                placeholder="••••••••"
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
@@ -343,6 +311,7 @@ export default function Login() {
               <Text style={styles.forgot}>{t.forgot}</Text>
             </TouchableOpacity>
 
+            {/* 2FA BOX */}
             <TouchableOpacity
               style={styles.twofaBox}
               onPress={() => router.push("/mfa-setup")}
@@ -355,7 +324,6 @@ export default function Login() {
                     : "Set up 2-Step Verification"}
                 </Text>
               </View>
-
               <Text style={styles.twofaSub}>
                 {isSmsEnabled
                   ? "Authenticator app - SMS backup"
@@ -363,6 +331,7 @@ export default function Login() {
               </Text>
             </TouchableOpacity>
 
+            {/* SIGN IN BUTTON */}
             <TouchableOpacity
               style={styles.signin}
               onPress={handleEmailSignIn}
@@ -373,6 +342,7 @@ export default function Login() {
               </Text>
             </TouchableOpacity>
 
+            {/* ADMIN BUTTON */}
             <TouchableOpacity
               style={styles.adminButton}
               onPress={handleAdminLogin}
@@ -381,12 +351,14 @@ export default function Login() {
               <Text style={styles.adminButtonText}>{t.admin}</Text>
             </TouchableOpacity>
 
+            {/* DIVIDER */}
             <View style={styles.dividerRow}>
               <View style={styles.line} />
               <Text style={styles.dividerText}>{t.orContinue}</Text>
               <View style={styles.line} />
             </View>
 
+            {/* SOCIAL BUTTONS */}
             <View style={styles.socialRow}>
               <TouchableOpacity
                 style={styles.socialButton}
@@ -399,11 +371,27 @@ export default function Login() {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.socialButton}>
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={() =>
+                  Alert.alert("Coming Soon", "Facebook login will be available soon.")
+                }
+              >
                 <FontAwesome name="facebook" size={18} color="#1877F2" />
                 <Text style={styles.socialText}> {t.facebook}</Text>
               </TouchableOpacity>
             </View>
+
+            {/* APPLE BUTTON */}
+            <TouchableOpacity
+              style={styles.appleButton}
+              onPress={() =>
+                Alert.alert("Coming Soon", "Apple ID login will be available soon.")
+              }
+            >
+              <FontAwesome name="apple" size={18} color="#fff" />
+              <Text style={styles.appleButtonText}> Continue with Apple</Text>
+            </TouchableOpacity>
 
             <Text style={styles.infoText}>{t.firstInfo}</Text>
           </View>
@@ -418,14 +406,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
-
   header: {
     height: 320,
     justifyContent: "flex-end",
     alignItems: "center",
     paddingBottom: 40,
   },
-
   gradient: {
     position: "absolute",
     top: 0,
@@ -433,28 +419,24 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-
   logo: {
     width: 110,
     height: 110,
     resizeMode: "contain",
     marginBottom: 15,
   },
-
   logoText: {
     color: "#ffffff",
     fontSize: 34,
     letterSpacing: 10,
     marginTop: 4,
   },
-
   foundation: {
     color: "#8a8a8a",
     letterSpacing: 4,
     fontSize: 11,
     marginTop: 10,
   },
-
   tagline: {
     color: "#d1d1d1",
     fontSize: 17,
@@ -462,7 +444,6 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     letterSpacing: 0.3,
   },
-
   card: {
     flex: 1,
     backgroundColor: "#fff",
@@ -470,22 +451,12 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     marginTop: -10,
   },
-
-  toggle: {
-    flexDirection: "row",
-    backgroundColor: "#eee",
-    borderRadius: 20,
-    padding: 4,
-    marginBottom: 20,
-  },
-
   languageRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 8,
     marginBottom: 10,
   },
-
   langChip: {
     borderWidth: 1,
     borderColor: "#d8d8d8",
@@ -494,22 +465,25 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     backgroundColor: "#f4f4f4",
   },
-
   langChipActive: {
     borderColor: "#d40000",
     backgroundColor: "#d40000",
   },
-
   langChipText: {
     color: "#606060",
     fontSize: 12,
     fontWeight: "700",
   },
-
   langChipTextActive: {
     color: "#fff",
   },
-
+  toggle: {
+    flexDirection: "row",
+    backgroundColor: "#eee",
+    borderRadius: 20,
+    padding: 4,
+    marginBottom: 20,
+  },
   toggleActive: {
     flex: 1,
     backgroundColor: "#fff",
@@ -520,27 +494,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
   },
-
   toggleInactive: {
     flex: 1,
     padding: 12,
     alignItems: "center",
   },
-
   toggleActiveText: {
     fontWeight: "600",
   },
-
   toggleInactiveText: {
     color: "#777",
   },
-
   label: {
     color: "#888",
     fontSize: 12,
     marginTop: 10,
   },
-
   input: {
     backgroundColor: "#f2f2f2",
     padding: 16,
@@ -559,13 +528,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 16,
   },
-
   forgot: {
     color: "#d40000",
     textAlign: "right",
     marginTop: 8,
   },
-
   twofaBox: {
     borderWidth: 1,
     borderColor: "#f2b6b6",
@@ -574,23 +541,19 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginTop: 15,
   },
-
   twofaRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-
   twofaTitle: {
     fontWeight: "600",
     marginLeft: 6,
   },
-
   twofaSub: {
     color: "#777",
     marginTop: 4,
   },
-
   signin: {
     backgroundColor: "#d40000",
     padding: 18,
@@ -602,13 +565,11 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
-
   signinText: {
     color: "#fff",
     fontWeight: "bold",
     fontSize: 18,
   },
-
   adminButton: {
     marginTop: 12,
     borderWidth: 1,
@@ -621,37 +582,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-
   adminButtonText: {
     color: "#7a0a0a",
     fontSize: 15,
     fontWeight: "700",
     letterSpacing: 0.2,
   },
-
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 20,
   },
-
   dividerText: {
     marginHorizontal: 8,
     color: "#888",
   },
-
   line: {
     flex: 1,
     height: 1,
     backgroundColor: "#ddd",
   },
-
   socialRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 16,
   },
-
   socialButton: {
     flexDirection: "row",
     backgroundColor: "#f2f2f2",
@@ -661,11 +616,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
   socialText: {
     fontWeight: "500",
   },
-
+  appleButton: {
+    flexDirection: "row",
+    backgroundColor: "#000",
+    padding: 14,
+    borderRadius: 12,
+    marginTop: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  appleButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
   infoText: {
     marginTop: 14,
     textAlign: "center",
