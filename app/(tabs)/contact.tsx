@@ -1,37 +1,205 @@
-﻿import { useAppLanguage } from "@/hooks/use-app-language";
+import { useAppLanguage } from "@/hooks/use-app-language";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { FontAwesome } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const CONTACT_EMAIL = "admin@dforbesfoundation.com";
+const CONTACT_PHONE = "416-672-0614";
+const CONTACT_ADDRESS = "889 Pantera Drive, Mississauga ON L6Y 6H8 Unit 3";
 
 export default function ContactTab() {
   const { isDark } = useAppTheme();
   const { isFrench } = useAppLanguage();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+
   const t = {
-    kicker: isFrench ? "Connexion" : "Connect",
-    title: isFrench ? "Contacter DFF" : "Contact DFF",
-    sub: isFrench ? "Questions, partenariats ou soutien." : "Questions, partnerships, or support. We are here to help.",
-    send: isFrench ? "Envoyer un message" : "Send Message",
+    title: isFrench ? "Contactez-nous" : "Get in touch",
+    messageTitle: isFrench ? "Envoyez-nous un message" : "Message us",
+    messageHelp: isFrench
+      ? "Nous serions ravis de vous lire. Remplissez le formulaire ci-dessous et nous vous repondrons rapidement."
+      : "We'd love to hear from you. Fill out the form below and we'll get back to you as soon as possible.",
+    required: isFrench ? "Les champs marques d'un * sont requis" : "Fields marked with a * are required",
+    name: isFrench ? "Nom *" : "Name *",
+    email: isFrench ? "Courriel *" : "Email *",
+    msg: isFrench ? "Message *" : "Message *",
+    submit: isFrench ? "SUBMIT" : "SUBMIT",
+    openEmail: isFrench ? "Ouvrir l'email" : "Open Email App",
+  };
+
+  const openEmailApp = async (subject: string, body: string) => {
+    const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const canOpen = await Linking.canOpenURL(mailto);
+    if (!canOpen) {
+      Alert.alert("Email unavailable", "No mail app found on this device.");
+      return;
+    }
+    await Linking.openURL(mailto);
+  };
+
+  const onSubmitForm = async () => {
+    if (!name.trim() || !email.trim() || !message.trim()) {
+      Alert.alert("Missing fields", "Please complete Name, Email, and Message.");
+      return;
+    }
+    const subject = `DFF App Contact Form - ${name.trim()}`;
+    const body = `Name: ${name.trim()}\nEmail: ${email.trim()}\n\nMessage:\n${message.trim()}`;
+    await openEmailApp(subject, body);
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? "#0f0c15" : "#f7f4fb" }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? "#0f0c15" : "#f4f4f6" }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <LinearGradient colors={isDark ? ["#1c1626", "#2a1d16"] : ["#ffffff", "#f3edf9"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { borderWidth: 1, borderColor: isDark ? "#2a2338" : "#ebe2f3" }]}>
-          <Text style={styles.heroKicker}>{t.kicker}</Text>
-          <Text style={[styles.heroTitle, { color: isDark ? "#fff" : "#1f1730" }]}>{t.title}</Text>
-          <Text style={[styles.heroSub, { color: isDark ? "#ccc5db" : "#5f566d" }]}>{t.sub}</Text>
+        <LinearGradient
+          colors={isDark ? ["#171321", "#220b12"] : ["#ffffff", "#f7f2f3"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.hero, { borderColor: isDark ? "#2a2338" : "#ece5e7" }]}
+        >
+          <Text style={[styles.heroTitle, { color: isDark ? "#fff" : "#0f0f16" }]}>{t.title}</Text>
+
+          <View style={styles.contactRow}>
+            <FontAwesome name="map-marker" size={20} color="#d40000" />
+            <Text style={styles.contactValue}>{CONTACT_ADDRESS}</Text>
+          </View>
+
+          <Pressable style={styles.contactRow} onPress={() => void openEmailApp("DFF Inquiry", "")}> 
+            <FontAwesome name="envelope" size={18} color="#d40000" />
+            <Text style={styles.contactValue}>{CONTACT_EMAIL}</Text>
+          </Pressable>
+
+          <Pressable style={styles.contactRow} onPress={() => void Linking.openURL(`tel:${CONTACT_PHONE.replace(/[^0-9+]/g, "")}`)}>
+            <FontAwesome name="phone" size={18} color="#d40000" />
+            <Text style={styles.contactValue}>{CONTACT_PHONE}</Text>
+          </Pressable>
+
+          <Pressable style={styles.secondaryBtn} onPress={() => void openEmailApp("DFF Inquiry", "")}> 
+            <Text style={styles.secondaryBtnText}>{t.openEmail}</Text>
+          </Pressable>
         </LinearGradient>
 
-        <View style={[styles.card, { backgroundColor: isDark ? "#171321" : "#fff", borderColor: isDark ? "#2a2338" : "#ebe2f3" }]}>
-          <View style={styles.contactRow}><FontAwesome name="envelope" size={16} color="#d40000" /><Text style={[styles.contactText, { color: isDark ? "#f7f3ff" : "#332c42" }]}>info@dforbesfoundation.com</Text></View>
-          <View style={styles.contactRow}><FontAwesome name="phone" size={16} color="#d40000" /><Text style={[styles.contactText, { color: isDark ? "#f7f3ff" : "#332c42" }]}>+1 (905) 805-0214</Text></View>
-          <Pressable style={styles.button}><Text style={styles.buttonText}>{t.send}</Text></Pressable>
+        <View
+          style={[
+            styles.formCard,
+            { backgroundColor: isDark ? "#171321" : "#ffffff", borderColor: isDark ? "#2a2338" : "#ece5e7" },
+          ]}
+        >
+          <Text style={[styles.formTitle, { color: isDark ? "#fff" : "#0f0f16" }]}>{t.messageTitle}</Text>
+          <Text style={[styles.formSub, { color: isDark ? "#cfc8dd" : "#55515d" }]}>{t.messageHelp}</Text>
+          <Text style={[styles.formSub, { marginTop: 14, color: isDark ? "#cfc8dd" : "#55515d" }]}>{t.required}</Text>
+
+          <Text style={[styles.label, { color: isDark ? "#f4f1fb" : "#222" }]}>{t.name}</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: isDark ? "#fff" : "#2e2a39",
+                borderColor: isDark ? "#2f2743" : "#ece5f7",
+                backgroundColor: isDark ? "#241d31" : "#f2edf9",
+              },
+            ]}
+            value={name}
+            onChangeText={setName}
+            placeholder={isFrench ? "Votre nom" : "Your name"}
+            placeholderTextColor="#8a8198"
+          />
+
+          <Text style={[styles.label, { color: isDark ? "#f4f1fb" : "#222" }]}>{t.email}</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: isDark ? "#fff" : "#2e2a39",
+                borderColor: isDark ? "#2f2743" : "#ece5f7",
+                backgroundColor: isDark ? "#241d31" : "#f2edf9",
+              },
+            ]}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            placeholder={isFrench ? "Votre courriel" : "Your email"}
+            placeholderTextColor="#8a8198"
+          />
+
+          <Text style={[styles.label, { color: isDark ? "#f4f1fb" : "#222" }]}>{t.msg}</Text>
+          <TextInput
+            style={[
+              styles.input,
+              styles.messageInput,
+              {
+                color: isDark ? "#fff" : "#2e2a39",
+                borderColor: isDark ? "#2f2743" : "#ece5f7",
+                backgroundColor: isDark ? "#241d31" : "#f2edf9",
+              },
+            ]}
+            value={message}
+            onChangeText={setMessage}
+            multiline
+            textAlignVertical="top"
+            placeholder={isFrench ? "Votre message" : "Your message"}
+            placeholderTextColor="#8a8198"
+          />
+
+          <Pressable style={styles.primaryBtn} onPress={() => void onSubmitForm()}>
+            <Text style={styles.primaryBtnText}>{t.submit}</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({ container: { flex: 1 }, content: { padding: 18, paddingBottom: 28 }, hero: { borderRadius: 18, padding: 18 }, heroKicker: { color: "#d40000", fontSize: 12, fontWeight: "800", letterSpacing: 1 }, heroTitle: { marginTop: 6, fontSize: 30, fontWeight: "800" }, heroSub: { marginTop: 6, fontSize: 15, lineHeight: 22 }, card: { marginTop: 14, borderRadius: 16, padding: 15, borderWidth: 1 }, contactRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 }, contactText: { fontSize: 15, fontWeight: "600" }, button: { marginTop: 16, backgroundColor: "#d40000", borderRadius: 10, height: 40, alignItems: "center", justifyContent: "center" }, buttonText: { color: "#fff", fontWeight: "800", fontSize: 14 } });
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { padding: 18, paddingBottom: 30 },
+  hero: { borderRadius: 16, padding: 18, borderWidth: 1 },
+  heroTitle: { fontSize: 38, fontWeight: "900", marginBottom: 10 },
+  contactRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12 },
+  contactValue: { color: "#d40000", fontSize: 19, fontWeight: "800", flexShrink: 1 },
+  secondaryBtn: {
+    marginTop: 14,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#d40000",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  secondaryBtnText: { color: "#d40000", fontWeight: "800" },
+  formCard: { marginTop: 14, borderRadius: 16, borderWidth: 1, padding: 16 },
+  formTitle: { fontSize: 34, fontWeight: "900" },
+  formSub: { marginTop: 8, fontSize: 16, lineHeight: 24 },
+  label: { marginTop: 12, fontSize: 12, fontWeight: "700" },
+  input: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 15,
+  },
+  messageInput: { minHeight: 130 },
+  primaryBtn: {
+    marginTop: 14,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#d40000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
+});

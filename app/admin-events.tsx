@@ -25,6 +25,7 @@ type DbEvent = {
   id: string;
   title: string;
   title_fr: string | null;
+  host_name: string | null;
   start_at: string;
   end_at: string | null;
   location: string | null;
@@ -45,6 +46,7 @@ export default function AdminEventsScreen() {
 
   const [title, setTitle] = useState("");
   const [titleFr, setTitleFr] = useState("");
+  const [hostName, setHostName] = useState("");
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [location, setLocation] = useState("");
@@ -60,6 +62,7 @@ export default function AdminEventsScreen() {
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editTitleFr, setEditTitleFr] = useState("");
+  const [editHostName, setEditHostName] = useState("");
   const [editStartAt, setEditStartAt] = useState("");
   const [editEndAt, setEditEndAt] = useState("");
   const [editLocation, setEditLocation] = useState("");
@@ -156,10 +159,18 @@ export default function AdminEventsScreen() {
 
   const loadEvents = async () => {
     setIsLoadingEvents(true);
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("events")
-      .select("id,title,title_fr,start_at,end_at,location,image_url,register_url,is_published")
+      .select("id,title,title_fr,host_name,start_at,end_at,location,image_url,register_url,is_published")
       .order("start_at", { ascending: false });
+    if (error && error.message.toLowerCase().includes("host_name")) {
+      const fallback = await supabase
+        .from("events")
+        .select("id,title,title_fr,start_at,end_at,location,image_url,register_url,is_published")
+        .order("start_at", { ascending: false });
+      data = (fallback.data as DbEvent[])?.map((item) => ({ ...item, host_name: null })) ?? null;
+      error = fallback.error;
+    }
     if (error) {
       if (error.message.includes("Could not find the table")) {
         setEventsTableMissing(true);
@@ -357,14 +368,23 @@ export default function AdminEventsScreen() {
   };
 
   const handleCreateEvent = async () => {
-    if (!title.trim() || !startAt.trim() || !endAt.trim() || !location.trim()) {
-      Alert.alert("Missing fields", "Title, start date/time, end date/time, and location are required.");
+    if (!title.trim() || !hostName.trim()) {
+      Alert.alert("Missing fields", "Title and host name are required.");
+      return;
+    }
+    if (eventType === "current" && (!startAt.trim() || !endAt.trim() || !location.trim())) {
+      Alert.alert("Missing fields", "For current/upcoming events, start date/time, end date/time, and location are required.");
       return;
     }
     if (!userId) return;
 
-    const parsedStart = parseDateInput(startAt);
-    const parsedEnd = parseDateInput(endAt);
+    const isPast = eventType === "past";
+    const parsedStart = isPast
+      ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      : parseDateInput(startAt);
+    const parsedEnd = isPast
+      ? new Date().toISOString()
+      : parseDateInput(endAt);
 
     if (!parsedStart) {
       Alert.alert("Invalid start date", "Please select a valid start date/time.");
@@ -385,16 +405,22 @@ export default function AdminEventsScreen() {
     const payload = {
       title: title.trim(),
       title_fr: titleFr.trim() || null,
+      host_name: hostName.trim() || null,
       start_at: parsedStart,
       end_at: parsedEnd,
-      location: location.trim(),
+      location: isPast ? (location.trim() || null) : location.trim(),
       image_url: finalImageUrl,
-      register_url: registerUrl.trim() || null,
+      register_url: isPast ? null : registerUrl.trim() || null,
       is_published: published,
       created_by: userId,
     };
 
-    const { error } = await supabase.from("events").insert(payload);
+    let { error } = await supabase.from("events").insert(payload);
+    if (error && error.message.toLowerCase().includes("host_name")) {
+      const { host_name, ...legacyPayload } = payload;
+      const retry = await supabase.from("events").insert(legacyPayload);
+      error = retry.error;
+    }
     if (error) {
       if (error.message.includes("Could not find the table")) {
         setEventsTableMissing(true);
@@ -415,6 +441,7 @@ export default function AdminEventsScreen() {
 
     setTitle("");
     setTitleFr("");
+    setHostName("");
     setStartDate(now);
     setEndDate(later);
     setLocation("");
@@ -436,6 +463,7 @@ export default function AdminEventsScreen() {
     setEditingEventId(event.id);
     setEditTitle(event.title ?? "");
     setEditTitleFr(event.title_fr ?? "");
+    setEditHostName(event.host_name ?? "");
     setEditStartAt(event.start_at ?? "");
     setEditEndAt(event.end_at ?? "");
     setEditLocation(event.location ?? "");
@@ -513,6 +541,7 @@ export default function AdminEventsScreen() {
     setEditingEventId(null);
     setEditTitle("");
     setEditTitleFr("");
+    setEditHostName("");
     setEditStartAt("");
     setEditEndAt("");
     setEditLocation("");
@@ -526,8 +555,8 @@ export default function AdminEventsScreen() {
 
   const handleUpdateEvent = async () => {
     if (!editingEventId) return;
-    if (!editTitle.trim() || !editStartAt.trim() || !editEndAt.trim() || !editLocation.trim()) {
-      Alert.alert("Missing fields", "Title, start date/time, end date/time, and location are required.");
+    if (!editTitle.trim() || !editHostName.trim() || !editStartAt.trim() || !editEndAt.trim() || !editLocation.trim()) {
+      Alert.alert("Missing fields", "Title, host name, start date/time, end date/time, and location are required.");
       return;
     }
 
@@ -547,6 +576,7 @@ export default function AdminEventsScreen() {
     const payload = {
       title: editTitle.trim(),
       title_fr: editTitleFr.trim() || null,
+      host_name: editHostName.trim() || null,
       start_at: parsedStart,
       end_at: parsedEnd,
       location: editLocation.trim(),
@@ -555,7 +585,12 @@ export default function AdminEventsScreen() {
       is_published: editPublished,
     };
 
-    const { error } = await supabase.from("events").update(payload).eq("id", editingEventId);
+    let { error } = await supabase.from("events").update(payload).eq("id", editingEventId);
+    if (error && error.message.toLowerCase().includes("host_name")) {
+      const { host_name, ...legacyPayload } = payload;
+      const retry = await supabase.from("events").update(legacyPayload).eq("id", editingEventId);
+      error = retry.error;
+    }
     if (error) {
       Alert.alert("Update failed", error.message);
       setIsUpdating(false);
@@ -627,27 +662,38 @@ export default function AdminEventsScreen() {
           </Pressable>
         </View>
 
-        <TextInput style={styles.input} value={registerUrl} onChangeText={setRegisterUrl} placeholder="Ticket/registration URL" placeholderTextColor="#8a8198" />
-        <Pressable style={styles.outlineBtn} onPress={importFromTicketGateway}>
-          <Text style={styles.outlineBtnText}>Import From TicketGateway URL</Text>
-        </Pressable>
+        {eventType === "current" ? (
+          <>
+            <TextInput style={styles.input} value={registerUrl} onChangeText={setRegisterUrl} placeholder="Ticket/registration URL" placeholderTextColor="#8a8198" />
+            <Pressable style={styles.outlineBtn} onPress={importFromTicketGateway}>
+              <Text style={styles.outlineBtnText}>Import From TicketGateway URL</Text>
+            </Pressable>
+          </>
+        ) : null}
 
         <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Title (EN)" placeholderTextColor="#8a8198" />
-        <TextInput style={styles.input} value={titleFr} onChangeText={setTitleFr} placeholder="Title (FR optional)" placeholderTextColor="#8a8198" />
+        {eventType === "current" ? (
+          <TextInput style={styles.input} value={titleFr} onChangeText={setTitleFr} placeholder="Title (FR optional)" placeholderTextColor="#8a8198" />
+        ) : null}
+        <TextInput style={styles.input} value={hostName} onChangeText={setHostName} placeholder="Host name (required)" placeholderTextColor="#8a8198" />
 
-        <View style={styles.dateCard}>
-          <Text style={styles.dateLabel}>Start Date & Time (Required)</Text>
-          <Pressable style={styles.dateBtn} onPress={() => openDatePicker("start")}>
-            <Text style={styles.dateBtnText}>{formattedStart}</Text>
-          </Pressable>
-        </View>
+        {eventType === "current" ? (
+          <>
+            <View style={styles.dateCard}>
+              <Text style={styles.dateLabel}>Start Date & Time (Required)</Text>
+              <Pressable style={styles.dateBtn} onPress={() => openDatePicker("start")}>
+                <Text style={styles.dateBtnText}>{formattedStart}</Text>
+              </Pressable>
+            </View>
 
-        <View style={styles.dateCard}>
-          <Text style={styles.dateLabel}>End Date & Time (Required)</Text>
-          <Pressable style={styles.dateBtn} onPress={() => openDatePicker("end")}>
-            <Text style={styles.dateBtnText}>{formattedEnd}</Text>
-          </Pressable>
-        </View>
+            <View style={styles.dateCard}>
+              <Text style={styles.dateLabel}>End Date & Time (Required)</Text>
+              <Pressable style={styles.dateBtn} onPress={() => openDatePicker("end")}>
+                <Text style={styles.dateBtnText}>{formattedEnd}</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : null}
 
         {activePicker ? (
           <View style={styles.pickerWrap}>
@@ -673,7 +719,9 @@ export default function AdminEventsScreen() {
           </View>
         ) : null}
 
-        <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="Location" placeholderTextColor="#8a8198" />
+        {eventType === "current" ? (
+          <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="Location (required)" placeholderTextColor="#8a8198" />
+        ) : null}
         <TextInput style={styles.input} value={imageUrl} onChangeText={setImageUrl} placeholder="Poster image URL (optional)" placeholderTextColor="#8a8198" />
         <Pressable style={styles.outlineBtn} onPress={pickPosterFromPhone}>
           <Text style={styles.outlineBtnText}>
@@ -717,6 +765,7 @@ export default function AdminEventsScreen() {
               <Image source={{ uri: item.image_url }} style={styles.eventThumb} contentFit="cover" cachePolicy="none" />
             ) : null}
             <Text style={styles.eventTitle}>{item.title}</Text>
+            <Text style={styles.eventMeta}>Host: {item.host_name ?? "N/A"}</Text>
             <Text style={styles.eventMeta}>{item.start_at}</Text>
             <Text style={styles.eventMeta}>{item.location ?? "No location"}</Text>
             <Text style={styles.eventMeta}>{item.register_url ?? "No link"}</Text>
@@ -736,6 +785,7 @@ export default function AdminEventsScreen() {
                 <Text style={styles.editTitle}>Edit Event</Text>
                 <TextInput style={styles.input} value={editTitle} onChangeText={setEditTitle} placeholder="Title (EN)" placeholderTextColor="#8a8198" />
                 <TextInput style={styles.input} value={editTitleFr} onChangeText={setEditTitleFr} placeholder="Title (FR optional)" placeholderTextColor="#8a8198" />
+                <TextInput style={styles.input} value={editHostName} onChangeText={setEditHostName} placeholder="Host name (required)" placeholderTextColor="#8a8198" />
                 <View style={styles.dateCard}>
                   <Text style={styles.dateLabel}>Start Date & Time (Required)</Text>
                   <Pressable style={styles.dateBtn} onPress={() => openDatePicker("editStart")}>
@@ -785,6 +835,7 @@ export default function AdminEventsScreen() {
               <Image source={{ uri: item.image_url }} style={styles.eventThumb} contentFit="cover" cachePolicy="none" />
             ) : null}
             <Text style={styles.eventTitle}>{item.title}</Text>
+            <Text style={styles.eventMeta}>Host: {item.host_name ?? "N/A"}</Text>
             <Text style={styles.eventMeta}>{item.start_at}</Text>
             <Text style={styles.eventMeta}>{item.location ?? "No location"}</Text>
             <Text style={styles.eventMeta}>{item.register_url ?? "No link"}</Text>
@@ -804,6 +855,7 @@ export default function AdminEventsScreen() {
                 <Text style={styles.editTitle}>Edit Event</Text>
                 <TextInput style={styles.input} value={editTitle} onChangeText={setEditTitle} placeholder="Title (EN)" placeholderTextColor="#8a8198" />
                 <TextInput style={styles.input} value={editTitleFr} onChangeText={setEditTitleFr} placeholder="Title (FR optional)" placeholderTextColor="#8a8198" />
+                <TextInput style={styles.input} value={editHostName} onChangeText={setEditHostName} placeholder="Host name (required)" placeholderTextColor="#8a8198" />
                 <View style={styles.dateCard}>
                   <Text style={styles.dateLabel}>Start Date & Time (Required)</Text>
                   <Pressable style={styles.dateBtn} onPress={() => openDatePicker("editStart")}>
