@@ -15,6 +15,7 @@ type PersonaProfile = {
   quote: string;
   age: string;
   location: string;
+  postalCodeTail: string;
   education: string;
   goals: string[];
   frustrations: string[];
@@ -32,6 +33,7 @@ function normalizePersonaProfile(raw: Partial<PersonaProfile>): PersonaProfile {
     quote: raw.quote ?? "",
     age: raw.age ?? "",
     location: raw.location ?? "",
+    postalCodeTail: raw.postalCodeTail ?? "",
     education: raw.education ?? "",
     goals: Array.isArray(raw.goals) ? raw.goals : [],
     frustrations: Array.isArray(raw.frustrations) ? raw.frustrations : [],
@@ -108,6 +110,7 @@ function buildDefaultProfile(type: PersonaType): PersonaProfile {
     quote: p.defaultQuote,
     age: "22",
     location: "Toronto, CA",
+    postalCodeTail: "",
     education: "Bachelor's",
     goals: [
       "Build a meaningful professional network",
@@ -149,17 +152,28 @@ export default function PersonaScreen() {
       if (!user?.id) return;
       setUserId(user.id);
 
-      const { data } = await supabase.from("profiles").select("first_name").eq("id", user.id).single();
+      const { data } = await supabase
+        .from("profiles")
+        .select("first_name, postal_code")
+        .eq("id", user.id)
+        .single();
       if (data?.first_name) setFirstName(data.first_name);
+      const profilePostal = typeof data?.postal_code === "string" ? data.postal_code.trim() : "";
 
       const raw = await AsyncStorage.getItem(`persona_data_${user.id}`);
       if (raw) {
         const parsed = normalizePersonaProfile(JSON.parse(raw) as Partial<PersonaProfile>);
+        if (!parsed.postalCodeTail && profilePostal) {
+          parsed.postalCodeTail = profilePostal;
+        }
         setPersona(parsed);
         setDraft(parsed);
         setSelectedType(parsed.type);
       } else {
         const next = buildDefaultProfile(selectedType);
+        if (profilePostal) {
+          next.postalCodeTail = profilePostal;
+        }
         setDraft(next);
       }
 
@@ -170,6 +184,9 @@ export default function PersonaScreen() {
         .single();
       if (cloudPersona?.payload) {
         const parsedCloud = normalizePersonaProfile(cloudPersona.payload as Partial<PersonaProfile>);
+        if (!parsedCloud.postalCodeTail && profilePostal) {
+          parsedCloud.postalCodeTail = profilePostal;
+        }
         setPersona(parsedCloud);
         setDraft(parsedCloud);
         setSelectedType(parsedCloud.type);
@@ -195,6 +212,7 @@ export default function PersonaScreen() {
       frustrations: isFrench ? "Frustrations" : "Frustrations",
       motivation: isFrench ? "Motivation" : "Motivation",
       personality: isFrench ? "Personnalite" : "Personality",
+      postal: isFrench ? "Code postal (3 chiffres)" : "Postal code (last 3 digits)",
       features: isFrench ? "Fonctionnalites" : "App Features Used",
       social: isFrench ? "Reseaux" : "Social Media",
       quote: isFrench ? "Citation" : "Quote",
@@ -349,6 +367,17 @@ export default function PersonaScreen() {
               style={[styles.input, { color: isDark ? "#fff" : "#1f1730", backgroundColor: isDark ? "#241d31" : "#f2edf9" }]}
               value={current.education}
               onChangeText={(v) => setDraftField("education", v)}
+            />
+
+            <Text style={styles.inputLabel}>{t.postal}</Text>
+            <TextInput
+              style={[styles.input, { color: isDark ? "#fff" : "#1f1730", backgroundColor: isDark ? "#241d31" : "#f2edf9" }]}
+              value={current.postalCodeTail}
+              onChangeText={(v) => setDraftField("postalCodeTail", v.replace(/\D/g, "").slice(0, 3))}
+              keyboardType="number-pad"
+              maxLength={3}
+              placeholder="123"
+              placeholderTextColor={isDark ? "#b1a9c2" : "#958ca8"}
             />
 
             {canShowPhotoOption ? (

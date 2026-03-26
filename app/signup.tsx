@@ -29,6 +29,8 @@ export default function Signup() {
   const [gender, setGender] = useState<"male" | "female" | "prefer_not_to_say">(
     "prefer_not_to_say"
   );
+  const [postalCodeTail, setPostalCodeTail] = useState("");
+  const [hidePostalCode, setHidePostalCode] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [setupSms, setSetupSms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,9 +87,18 @@ export default function Signup() {
       return;
     }
 
+    if (!hidePostalCode && !/^\d{3}$/.test(postalCodeTail.trim())) {
+      Alert.alert(
+        "Postal code required",
+        "Enter the last 3 digits of your postal code, or select 'Prefer not to share'."
+      );
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      const { error } = await supabase.auth.signUp({
+      const normalizedPostalTail = hidePostalCode ? null : postalCodeTail.trim();
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -97,6 +108,8 @@ export default function Signup() {
             age: hideAge ? null : age,
             age_hidden: hideAge,
             gender,
+            postal_code_tail: normalizedPostalTail,
+            postal_code_hidden: hidePostalCode,
           },
         },
       });
@@ -104,6 +117,29 @@ export default function Signup() {
       if (error) {
         Alert.alert("Create account failed", error.message);
         return;
+      }
+
+      const newUserId = data.user?.id ?? null;
+      if (newUserId) {
+        const profilePayload = {
+          id: newUserId,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          age: hideAge ? null : age,
+          age_hidden: hideAge,
+          gender,
+          postal_code: normalizedPostalTail,
+        };
+
+        let profileUpsert = await supabase.from("profiles").upsert(profilePayload);
+        if (profileUpsert.error && profileUpsert.error.message.toLowerCase().includes("postal_code")) {
+          const { postal_code, ...legacyPayload } = profilePayload;
+          profileUpsert = await supabase.from("profiles").upsert(legacyPayload);
+        }
+
+        if (profileUpsert.error) {
+          console.warn("Profile upsert warning:", profileUpsert.error.message);
+        }
       }
 
       Alert.alert(
@@ -228,6 +264,29 @@ export default function Signup() {
                 <Text style={styles.optionLabel}>Prefer not to say</Text>
               </Pressable>
             </View>
+
+            <View style={styles.postalHeaderRow}>
+              <Text style={styles.label}>POSTAL CODE (LAST 3 DIGITS)</Text>
+              <Text style={styles.postalValue}>{hidePostalCode ? "Prefer not to share" : postalCodeTail || "---"}</Text>
+            </View>
+
+            {!hidePostalCode && (
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 123"
+                value={postalCodeTail}
+                onChangeText={(value) => setPostalCodeTail(value.replace(/\D/g, "").slice(0, 3))}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+            )}
+
+            <Pressable style={styles.optionRow} onPress={() => setHidePostalCode(!hidePostalCode)}>
+              <View style={[styles.radioOuter, hidePostalCode && styles.radioOuterActive]}>
+                {hidePostalCode && <View style={styles.radioInner} />}
+              </View>
+              <Text style={styles.optionLabel}>Prefer not to share</Text>
+            </Pressable>
 
             <Text style={styles.label}>PASSWORD</Text>
             <View style={styles.passwordRow}>
@@ -366,6 +425,19 @@ const styles = StyleSheet.create({
   },
 
   ageValue: {
+    color: "#d40000",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  postalHeaderRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  postalValue: {
     color: "#d40000",
     fontSize: 14,
     fontWeight: "700",

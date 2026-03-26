@@ -43,6 +43,7 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [isGmailLoading, setIsGmailLoading] = useState(false);
   const [isSmsEnabled, setIsSmsEnabled] = useState(false);
@@ -298,13 +299,20 @@ const handleGmailSignIn = async () => {
               <TextInput
                 style={styles.passwordInput}
                 placeholder="••••••••"
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
                 autoComplete="password"
                 textContentType="password"
                 importantForAutofill="yes"
               />
+              <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
+                <FontAwesome
+                  name={showPassword ? "eye-slash" : "eye"}
+                  size={18}
+                  color="#666"
+                />
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity>

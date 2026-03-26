@@ -1,5 +1,6 @@
 import { useAppLanguage } from "@/hooks/use-app-language";
 import { useAppTheme } from "@/hooks/use-app-theme";
+import { supabase } from "@/lib/supabase";
 import { FontAwesome } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
@@ -25,13 +26,14 @@ export default function ContactTab() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const t = {
     title: isFrench ? "Contactez-nous" : "Get in touch",
     messageTitle: isFrench ? "Envoyez-nous un message" : "Message us",
     messageHelp: isFrench
-      ? "Nous serions ravis de vous lire. Remplissez le formulaire ci-dessous et nous vous repondrons rapidement."
-      : "We'd love to hear from you. Fill out the form below and we'll get back to you as soon as possible.",
+      ? "Nous serions ravis de vous lire. Remplissez le formulaire ci-dessous et notre equipe admin vous repondra rapidement."
+      : "We'd love to hear from you. Fill out the form below and our admin team will review and respond as soon as possible.",
     required: isFrench ? "Les champs marques d'un * sont requis" : "Fields marked with a * are required",
     name: isFrench ? "Nom *" : "Name *",
     email: isFrench ? "Courriel *" : "Email *",
@@ -55,9 +57,33 @@ export default function ContactTab() {
       Alert.alert("Missing fields", "Please complete Name, Email, and Message.");
       return;
     }
-    const subject = `DFF App Contact Form - ${name.trim()}`;
-    const body = `Name: ${name.trim()}\nEmail: ${email.trim()}\n\nMessage:\n${message.trim()}`;
-    await openEmailApp(subject, body);
+    setIsSubmitting(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const payload = {
+        user_id: user?.id ?? null,
+        name: name.trim(),
+        email: email.trim(),
+        message: message.trim(),
+      };
+
+      const insertResult = await supabase.from("contact_messages").insert(payload);
+      if (insertResult.error) {
+        throw new Error(insertResult.error.message);
+      }
+      Alert.alert("Submitted", "Your message has been sent to the DFF admin inbox.");
+      setName("");
+      setEmail("");
+      setMessage("");
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "Could not submit message.";
+      Alert.alert("Submit failed", text);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -76,7 +102,7 @@ export default function ContactTab() {
             <Text style={styles.contactValue}>{CONTACT_ADDRESS}</Text>
           </View>
 
-          <Pressable style={styles.contactRow} onPress={() => void openEmailApp("DFF Inquiry", "")}> 
+          <Pressable style={styles.contactRow} onPress={() => void openEmailApp("DFF Inquiry", "")}>
             <FontAwesome name="envelope" size={18} color="#d40000" />
             <Text style={styles.contactValue}>{CONTACT_EMAIL}</Text>
           </Pressable>
@@ -154,8 +180,8 @@ export default function ContactTab() {
             placeholderTextColor="#8a8198"
           />
 
-          <Pressable style={styles.primaryBtn} onPress={() => void onSubmitForm()}>
-            <Text style={styles.primaryBtnText}>{t.submit}</Text>
+          <Pressable style={[styles.primaryBtn, isSubmitting && styles.primaryBtnDisabled]} onPress={() => void onSubmitForm()} disabled={isSubmitting}>
+            <Text style={styles.primaryBtnText}>{isSubmitting ? "Submitting..." : t.submit}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -169,7 +195,7 @@ const styles = StyleSheet.create({
   hero: { borderRadius: 16, padding: 18, borderWidth: 1 },
   heroTitle: { fontSize: 38, fontWeight: "900", marginBottom: 10 },
   contactRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12 },
-  contactValue: { color: "#d40000", fontSize: 19, fontWeight: "800", flexShrink: 1 },
+  contactValue: { fontSize: 19, fontWeight: "800", flexShrink: 1, color: "#111111" },
   secondaryBtn: {
     marginTop: 14,
     alignSelf: "flex-start",
@@ -201,5 +227,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  primaryBtnDisabled: { opacity: 0.65 },
   primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },
 });
