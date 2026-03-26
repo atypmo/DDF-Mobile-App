@@ -401,6 +401,16 @@ const handleGmailSignIn = async () => {
               <Text style={styles.appleButtonText}> Continue with Apple</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.linkedinButton}
+              onPress={() =>
+                Alert.alert("Coming Soon", "LinkedIn login will be available soon.")
+              }
+            >
+              <FontAwesome name="linkedin" size={18} color="#fff" />
+              <Text style={styles.linkedinButtonText}> Continue with LinkedIn</Text>
+            </TouchableOpacity>
+
             <Text style={styles.infoText}>{t.firstInfo}</Text>
           </View>
         </ScrollView>
@@ -637,6 +647,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   appleButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  linkedinButton: {
+  flexDirection: "row",
+  backgroundColor: "#0077B5",
+  padding: 14,
+  borderRadius: 12,
+  marginTop: 10,
+  justifyContent: "center",
+  alignItems: "center",
+  },
+  linkedinButtonText: {
     color: "#fff",
     fontWeight: "700",
     fontSize: 15,
